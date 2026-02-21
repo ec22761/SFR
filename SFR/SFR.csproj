@@ -116,6 +116,7 @@
     <Compile Include="Objects\ObjectCrossbowBolt.cs" />
     <Compile Include="Objects\ObjectDoor.cs" />
     <Compile Include="Objects\ObjectFragGrenadeThrown.cs" />
+    <Compile Include="Objects\ObjectGasGrenadeThrown.cs" />
     <Compile Include="Objects\ObjectHead.cs" />
     <Compile Include="Objects\ObjectImpactGrenadeThrown.cs" />
     <Compile Include="Objects\ObjectInvisibleBlockWeak.cs" />
@@ -196,6 +197,7 @@
     <Compile Include="Weapons\Rifles\Winchester.cs" />
     <Compile Include="Weapons\Thrown\Claymore.cs" />
     <Compile Include="Weapons\Thrown\FragGrenade.cs" />
+    <Compile Include="Weapons\Thrown\GasGrenade.cs" />
     <Compile Include="Weapons\Thrown\ImpactGrenade.cs" />
     <Compile Include="Weapons\Thrown\Snowball.cs" />
     <Compile Include="Weapons\Thrown\StickyBomb.cs" />
