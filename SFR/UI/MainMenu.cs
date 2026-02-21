@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Emit;
 using HarmonyLib;
 using SFD.MenuControls;
 
@@ -24,12 +21,4 @@ internal static class MainMenu
     }
 
     private static void Credits(object sender) => _openSubPanel(new CreditsPanel());
-
-    [HarmonyTranspiler]
-    [HarmonyPatch(typeof(MainMenuPanel), nameof(SFD.MenuControls.MainMenuPanel.KeyPress))]
-    private static IEnumerable<CodeInstruction> ExitButton(IEnumerable<CodeInstruction> instructions)
-    {
-        instructions.ElementAt(10).opcode = OpCodes.Ldc_I4_8;
-        return instructions;
-    }
 }

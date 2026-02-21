@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using HarmonyLib;
+﻿using HarmonyLib;
 using Microsoft.Xna.Framework;
 using SFD;
 using SFD.States;
@@ -26,11 +25,9 @@ internal static class CommandHandler
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(GameInfo), "HandleCommand")]
-    private static void HandleCommands(object[] __args, MethodBase __originalMethod, GameInfo __instance)
+    [HarmonyPatch(typeof(GameInfo), "HandleCommand", new[] { typeof(ProcessCommandArgs) })]
+    private static void HandleCommands(ProcessCommandArgs args, GameInfo __instance)
     {
-        if (__originalMethod.GetParameters().Length != 1) return;
-        dynamic args = __args[0];
         if (__instance.GameOwner != GameOwnerEnum.Client)
         {
             if (args.HostPrivileges)

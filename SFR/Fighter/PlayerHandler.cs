@@ -389,14 +389,15 @@ internal static class PlayerHandler
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(Player), "TimeSequence.Update")]
-    private static void UpdateTimeSequence(float ms, Player __instance)
+    [HarmonyPatch(typeof(Player.TimeSequenceValues), "Update")]
+    private static void UpdateTimeSequence(float ms, Player.TimeSequenceValues __instance)
     {
-        ExtendedPlayer extendedPlayer = __instance.GetExtension();
+        Player player = __instance.m_player;
+        ExtendedPlayer extendedPlayer = player.GetExtension();
         if (extendedPlayer.AdrenalineBoost)
         {
             extendedPlayer.Time.AdrenalineBoost -= ms;
-            if (!extendedPlayer.AdrenalineBoost || __instance.IsDead)
+            if (!extendedPlayer.AdrenalineBoost || player.IsDead)
             {
                 extendedPlayer.DisableAdrenalineBoost();
             }

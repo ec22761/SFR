@@ -8,7 +8,7 @@
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <StartupObject>SFR.Program</StartupObject>
     <ApplicationIcon>icon.ico</ApplicationIcon>
-    <PostBuildEvent>call "$(ProjectDir)build.bat" "$(TargetDir)"</PostBuildEvent>
+    <PostBuildEvent>call "$(MSBuildProjectDirectory)\build.bat" "$(MSBuildProjectDirectory)\bin\x64\$(Configuration)\" "$(MSBuildProjectDirectory)\.."</PostBuildEvent>
     <LangVersion>latest</LangVersion>
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
@@ -210,7 +210,4 @@
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>call "$(ProjectDir)build.bat" $(Configuration)</PostBuildEvent>
-  </PropertyGroup>
 </Project>
