@@ -57,7 +57,7 @@ internal sealed class ObjectHead : ObjectGiblet
         Texture2D skin = equipment.m_parts[0][0]?.Textures[0];
         if (skin is not null)
         {
-            Task<Texture2D> task = Task.Run(() => equipment.m_parts[0][0]?.GetTexture(0, equipment.GetItemColors(0), equipment.GetItemColorsKey(0)));
+            Task<Texture2D> task = Task.Run(() => equipment.m_parts[0][0]?.GetTexture(0, equipment, 0));
             if (task.Wait(5))
             {
                 skin = task.Result;
@@ -71,7 +71,7 @@ internal sealed class ObjectHead : ObjectGiblet
         Texture2D accessory = equipment.m_parts[6][0]?.Textures[0];
         if (accessory is not null)
         {
-            Task<Texture2D> task1 = Task.Run(() => equipment.m_parts[6][0]?.GetTexture(0, equipment.GetItemColors(6), equipment.GetItemColorsKey(6)));
+            Task<Texture2D> task1 = Task.Run(() => equipment.m_parts[6][0]?.GetTexture(0, equipment, 6));
             if (task1.Wait(5))
             {
                 accessory = task1.Result;
@@ -85,7 +85,7 @@ internal sealed class ObjectHead : ObjectGiblet
         Texture2D head = equipment.m_parts[8][0]?.Textures[0];
         if (head is not null)
         {
-            Task<Texture2D> task2 = Task.Run(() => equipment.m_parts[8][0]?.GetTexture(0, equipment.GetItemColors(8), equipment.GetItemColorsKey(8)));
+            Task<Texture2D> task2 = Task.Run(() => equipment.m_parts[8][0]?.GetTexture(0, equipment, 8));
             if (task2.Wait(5))
             {
                 head = task2.Result;

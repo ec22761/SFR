@@ -220,7 +220,7 @@ namespace SFR.Fighter;
 internal static class PlayerHandler
 {
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.CheckLedgeGrab))]
+    [HarmonyPatch(typeof(Player), "CheckLedgeGrab")]
     private static bool CheckLedgeGrab(Player __instance)
     {
         if (__instance.VirtualKeyboardLastMovement is PlayerMovement.Right or PlayerMovement.Left)
@@ -237,7 +237,7 @@ internal static class PlayerHandler
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(Player), nameof(Player.Update))]
+    [HarmonyPatch(typeof(Player), "Update")]
     private static void Update(float ms, float realMs, Player __instance)
     {
         object weapon = __instance.GetCurrentWeapon();
@@ -251,7 +251,7 @@ internal static class PlayerHandler
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.IsInDeflectBulletFrameWindow), MethodType.Getter)]
+    [HarmonyPatch(typeof(Player), "IsInDeflectBulletFrameWindow", MethodType.Getter)]
     private static bool IsInDeflectBulletFrameWindow(Player __instance, ref bool __result)
     {
         object currentWeapon = __instance.GetCurrentWeapon();
@@ -279,7 +279,7 @@ internal static class PlayerHandler
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.Movement), MethodType.Setter)]
+    [HarmonyPatch(typeof(Player), "Movement", MethodType.Setter)]
     private static bool SetPlayerMovement(PlayerMovement value, Player __instance)
     {
         ExtendedPlayer extendedPlayer = __instance.GetExtension();
@@ -293,7 +293,7 @@ internal static class PlayerHandler
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.JumpAttack))]
+    [HarmonyPatch(typeof(Player), "JumpAttack")]
     private static bool JumpAttack(Player __instance)
     {
         object currentWeapon = __instance.GetCurrentWeapon();
@@ -301,7 +301,7 @@ internal static class PlayerHandler
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.TakeCover))]
+    [HarmonyPatch(typeof(Player), "TakeCover")]
     private static bool TakeCover(Player __instance)
     {
         object currentWeapon = __instance.GetCurrentWeapon();
@@ -333,7 +333,7 @@ internal static class PlayerHandler
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(Player), nameof(Player.HandlePlayerKeyHoldingPreUpdateEvent))]
+    [HarmonyPatch(typeof(Player), "HandlePlayerKeyHoldingPreUpdateEvent")]
     private static void UpdateKeyEvent(Player __instance)
     {
         ExtendedPlayer extendedPlayer = __instance.GetExtension();
@@ -389,7 +389,7 @@ internal static class PlayerHandler
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(Player), nameof(Player.TimeSequence.Update))]
+    [HarmonyPatch(typeof(Player), "TimeSequence.Update")]
     private static void UpdateTimeSequence(float ms, Player __instance)
     {
         ExtendedPlayer extendedPlayer = __instance.GetExtension();

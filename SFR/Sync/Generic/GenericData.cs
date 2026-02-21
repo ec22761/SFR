@@ -1,5 +1,5 @@
 ﻿using System.Collections.Generic;
-using Lidgren.Network;
+using Networking.LidgrenAdapter;
 using SFD;
 
 namespace SFR.Sync.Generic;

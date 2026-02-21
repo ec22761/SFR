@@ -30,7 +30,7 @@ internal static class GoreHandler
     /// Spawn more giblets on player dead.
     /// </summary>
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.Gib))]
+    [HarmonyPatch(typeof(Player), "Gib")]
     private static void OnGib(Player __instance)
     {
         if (!__instance.IsRemoved && !__instance.m_removalRunning && __instance.PlayerHitEffect == PlayerHitEffect.Default)
@@ -173,7 +173,7 @@ internal static class GoreHandler
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.CheckBurnedProfile))]
+    [HarmonyPatch(typeof(Player), "CheckBurnedProfile")]
     internal static bool CheckBurned(Player __instance)
     {
         if (__instance.Burned)

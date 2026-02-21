@@ -33,7 +33,7 @@ internal static class WorldHandler
     /// Therefore we iterate the collection backwards so it can be modified without throwing an exception.
     /// </summary>
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(GameWorld), nameof(GameWorld.FinalizeProperties))]
+    [HarmonyPatch(typeof(GameWorld), "FinalizeProperties")]
     private static bool FinalizeProperties(GameWorld __instance)
     {
         __instance.b2_settings.timeStep = 0f;
@@ -57,6 +57,6 @@ internal static class WorldHandler
     /// Use it to dispose your collections or reset some data.
     /// </summary>
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(GameWorld), nameof(GameWorld.DisposeAllObjects))]
+    [HarmonyPatch(typeof(GameWorld), "DisposeAllObjects")]
     private static void DisposeData() => SyncHandler.Attempts.Clear();
 }

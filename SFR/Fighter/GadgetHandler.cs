@@ -15,7 +15,7 @@ namespace SFR.Fighter;
 internal static class GadgetHandler
 {
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(PlayerHUD), nameof(PlayerHUD.DrawTeamIcon))]
+    [HarmonyPatch(typeof(PlayerHUD), "DrawTeamIcon")]
     private static bool DrawHudTeamIcon(Player player, GameUser user, int x, int y, SpriteBatch spriteBatch, float elapsed)
     {
         Texture2D teamIcon = Constants.GetTeamIcon(user.GameSlotTeam);
@@ -23,7 +23,7 @@ internal static class GadgetHandler
         {
             if (player is not null && !player.IsRemoved && !player.IsDead && !player.IsBot && user is not null)
             {
-                if (DevHandler.GetDeveloperIcon(user.Account) is { } devIcon)
+                if (DevHandler.GetDeveloperIcon(player, user) is { } devIcon)
                 {
                     teamIcon = devIcon;
                 }
@@ -69,7 +69,7 @@ internal static class GadgetHandler
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.DrawColor), MethodType.Getter)]
+    [HarmonyPatch(typeof(Player), "DrawColor", MethodType.Getter)]
     private static bool GetPlayerDrawColor(Player __instance, ref Color __result)
     {
         ExtendedPlayer extendedPlayer = __instance.GetExtension();

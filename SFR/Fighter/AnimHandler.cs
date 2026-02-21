@@ -74,7 +74,7 @@ internal static class AnimHandler
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.GetAnimWalkUpper))]
+    [HarmonyPatch(typeof(Player), "GetAnimWalkUpper")]
     private static bool WalkAnimation(Player __instance, ref string __result)
     {
         if (GameSFD.Handle.CurrentState == State.MainMenu)
@@ -122,7 +122,7 @@ internal static class AnimHandler
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.GetAnimIdleUpper))]
+    [HarmonyPatch(typeof(Player), "GetAnimIdleUpper")]
     private static bool IdleAnimation(Player __instance, ref string __result)
     {
         if (GameSFD.Handle.CurrentState == State.MainMenu)
@@ -202,7 +202,7 @@ internal static class AnimHandler
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.UpdateAnimation))]
+    [HarmonyPatch(typeof(Player), "UpdateAnimation")]
     private static bool UpdateAnimation(Player __instance)
     {
         if (__instance.IsRemoved)

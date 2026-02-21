@@ -37,7 +37,7 @@ internal interface IExtendedWeapon
 internal static class ExtendedWeapon
 {
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.UpdateMeleeWeaponDurabilityOnHitObjects))]
+    [HarmonyPatch(typeof(Player), "UpdateMeleeWeaponDurabilityOnHitObjects")]
     private static void GetDealtDamage(IEnumerable<ObjectData> objectsHitInMelee, Player __instance)
     {
         MWeapon weapon = __instance.GetCurrentMeleeWeaponInUse();
@@ -59,7 +59,7 @@ internal static class ExtendedWeapon
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.HitByMelee))]
+    [HarmonyPatch(typeof(Player), "HitByMelee")]
     private static bool HitByMelee(Player hitBy, Player __instance)
     {
         object currentWeapon = __instance.GetCurrentWeapon();
@@ -91,7 +91,7 @@ internal static class ExtendedWeapon
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Player), nameof(Player.HitByKick))]
+    [HarmonyPatch(typeof(Player), "HitByKick")]
     private static bool HitByKick(Player hitBy, Player __instance)
     {
         object currentWeapon = __instance.GetCurrentWeapon();
@@ -107,7 +107,7 @@ internal static class ExtendedWeapon
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(Player), nameof(Player.HitByMelee))]
+    [HarmonyPatch(typeof(Player), "HitByMelee")]
     private static void OnPlayerHit(Player hitBy, Player __instance)
     {
         GoreHandler.MeleeHit(hitBy, __instance);

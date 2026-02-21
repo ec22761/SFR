@@ -1,4 +1,5 @@
-﻿using HarmonyLib;
+﻿using System.Reflection;
+using HarmonyLib;
 using Microsoft.Xna.Framework;
 using SFD;
 using SFD.States;
@@ -25,9 +26,11 @@ internal static class CommandHandler
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(GameInfo), nameof(GameInfo.HandleCommand), typeof(ProcessCommandArgs))]
-    private static void HandleCommands(ProcessCommandArgs args, GameInfo __instance)
+    [HarmonyPatch(typeof(GameInfo), "HandleCommand")]
+    private static void HandleCommands(object[] __args, MethodBase __originalMethod, GameInfo __instance)
     {
+        if (__originalMethod.GetParameters().Length != 1) return;
+        dynamic args = __args[0];
         if (__instance.GameOwner != GameOwnerEnum.Client)
         {
             if (args.HostPrivileges)
@@ -59,7 +62,7 @@ internal static class CommandHandler
                         {
                             if (float.TryParse(args.Parameters[1], out float num))
                             {
-                                args.Feedback.Add(new(args.SenderGameUser, "Debug float: " + num));
+                                args.Feedback.Add(new ProcessCommandMessage(args.SenderGameUser, "Debug float: " + num));
                                 _debugVar[index] = num;
                             }
                         }
@@ -75,7 +78,7 @@ internal static class CommandHandler
                 if (args.HostPrivileges)
                 {
 #if DEBUG
-                    args.Feedback.Add(new(args.SenderGameUser, "'/DEBUG [INDEX] [VALUE]' debug purposes", color, args.SenderGameUser));
+                    args.Feedback.Add(new ProcessCommandMessage(args.SenderGameUser, "'/DEBUG [INDEX] [VALUE]' debug purposes", color, args.SenderGameUser));
 #endif
                     args.Feedback.Add(new ProcessCommandMessage(args.SenderGameUser, "'/MOUSE [1/0]' Drag stuff with mouse", color, args.SenderGameUser));
                 }

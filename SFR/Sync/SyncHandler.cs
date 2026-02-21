@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using HarmonyLib;
-using Lidgren.Network;
+using Networking.LidgrenAdapter;
 using SFD;
 using SFR.Fighter;
 using SFR.Fighter.Jetpacks;
@@ -32,7 +32,7 @@ internal static class SyncHandler
     internal static readonly Dictionary<int, byte> Attempts = [];
 
     [HarmonyTranspiler]
-    [HarmonyPatch(typeof(NetMessage), nameof(NetMessage.WriteDataType))]
+    [HarmonyPatch("SFD.NetMessage", "WriteDataType")]
     private static IEnumerable<CodeInstruction> ExtendWriteData(IEnumerable<CodeInstruction> instructions)
     {
         foreach (CodeInstruction instruction in instructions)
@@ -52,7 +52,7 @@ internal static class SyncHandler
     }
 
     [HarmonyTranspiler]
-    [HarmonyPatch(typeof(NetMessage), nameof(NetMessage.ReadDataType))]
+    [HarmonyPatch("SFD.NetMessage", "ReadDataType")]
     private static IEnumerable<CodeInstruction> ExtendReadData(IEnumerable<CodeInstruction> instructions)
     {
         foreach (CodeInstruction instruction in instructions)
@@ -115,7 +115,7 @@ internal static class SyncHandler
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(Server), nameof(Server.updateRun))]
+    [HarmonyPatch(typeof(Server), "updateRun")]
     private static void SendDataToClients(bool isLast, Server __instance)
     {
         if (__instance.m_server is null || __instance.CurrentState != ServerClientState.Game || __instance.WaitingForUsers || __instance.GameInfo.TotalGameUserCount == 0 || __instance.m_waitingForUserRestartInProgress)
@@ -228,8 +228,8 @@ internal static class SyncHandler
     }
 
     [HarmonyPostfix]
-    [HarmonyPatch(typeof(Client), nameof(Client.HandleDataMessage))]
-    private static void ReceiveAdditionalDataFromServer(NetMessage.MessageData messageData, NetIncomingMessage msg, Client __instance)
+    [HarmonyPatch(typeof(Client), "HandleDataMessage")]
+    private static void ReceiveAdditionalDataFromServer(dynamic messageData, NetIncomingMessage msg, Client __instance)
     {
         switch ((int)messageData.MessageType)
         {

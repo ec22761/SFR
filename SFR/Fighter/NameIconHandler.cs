@@ -11,7 +11,7 @@ internal static class NameIconHandler
     private static void DrawDeveloperIcon(Player player, Vector2 vec, float num)
     {
         GameUser user = player.GetGameUser();
-        if (user is not null && DevHandler.GetDeveloperIcon(user.Account) is { } icon)
+        if (user is not null && DevHandler.GetDeveloperIcon(player, user) is { } icon)
         {
             player.m_spriteBatch.Draw(
                 icon,
@@ -74,7 +74,7 @@ internal static class NameIconHandler
         if (!player.IsBot)
         {
             GameUser user = player.GetGameUser();
-            if (user is not null && DevHandler.IsDeveloper(user.Account))
+            if (user is not null && DevHandler.IsDeveloper(player, user))
             {
                 DrawDeveloperIcon(player, vec, num);
             }
