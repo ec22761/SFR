@@ -80,6 +80,12 @@ internal static class GadgetHandler
             return false;
         }
 
+        if (extendedPlayer.LeapBoost)
+        {
+            __result = ColorCorrection.CreateCustom(Globals.LeapBoost);
+            return false;
+        }
+
         return true;
     }
 }

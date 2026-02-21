@@ -23,7 +23,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[110];
+        WeaponDatabase.m_weapons = new WeaponItem[111];
 
         Weapons ??=
         [
@@ -76,6 +76,7 @@ internal static class Database
             // Pickup
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
             new WeaponItem(WeaponItemType.Powerup, new AdrenalineBoost()), // 103
+            new WeaponItem(WeaponItemType.Powerup, new LeapBoost()), // 110
             new WeaponItem(WeaponItemType.InstantPickup, new Jetpack()), // 104
             new WeaponItem(WeaponItemType.InstantPickup, new JetpackEditor()), // 105
             new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()) // 106
@@ -185,7 +186,7 @@ internal static class Database
             { 82, 16 }, // RiotShield,
             { 83, 16 }, // Sledgehammer
             { 84, 18 }, // Switchblade
-            // { 85, 4 }, // UnkemptHarold
+            { 85, 4 }, // UnkemptHarold
             { 86, 9 }, // StickyLauncher
             { 87, 15 }, // Claymore
             { 88, 16 }, // Frag grenade
@@ -208,8 +209,9 @@ internal static class Database
             // 105, Jetpack editor
             { 106, 11 }, // Gunpack
             { 107, 12 }, // AK47
-            { 108, 10 }, // Scythe
-            { 109, 12 } // Anaconda
+            { 108, 8 }, // Scythe
+            { 109, 10 }, // Anaconda
+            { 110, 12 } // Leap boost
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -323,6 +325,7 @@ internal static class Database
         AK47,
         Scythe,
         Anaconda,
+        LeapBoost,
         Jetpack,
         JetpackEditor,
         Gunpack

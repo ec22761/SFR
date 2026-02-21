@@ -27,6 +27,18 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         set => Time.AdrenalineBoost = value ? TimeSequence.AdrenalineBoostTime : 0f;
     }
 
+    internal bool LeapBoost
+    {
+        get => Time.LeapBoost > 0f;
+        set => Time.LeapBoost = value ? TimeSequence.LeapBoostTime : 0f;
+    }
+
+    /// <summary>
+    ///     Tracks whether the player was on the ground last frame,
+    ///     so we can detect jump transitions for the leap boost.
+    /// </summary>
+    internal bool WasGrounded;
+
     public bool Equals(Player other) => other?.ObjectID == Player.ObjectID;
 
     internal void ApplyAdrenalineBoost()
@@ -35,9 +47,15 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
     }
 
+    internal void ApplyLeapBoost()
+    {
+        LeapBoost = true;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+    }
+
     internal object[] GetStates()
     {
-        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f];
+        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost];
         return states;
     }
 
@@ -48,10 +66,19 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         SoundHandler.PlaySound("StrengthBoostStop", Player.Position, Player.GameWorld);
     }
 
+    internal void DisableLeapBoost()
+    {
+        LeapBoost = false;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+        SoundHandler.PlaySound("StrengthBoostStop", Player.Position, Player.GameWorld);
+    }
+
     internal class TimeSequence
     {
         internal const float AdrenalineBoostTime = 20000f;
+        internal const float LeapBoostTime = 20000f;
         internal float AdrenalineBoost;
+        internal float LeapBoost;
     }
 
     public bool Equals(ExtendedPlayer other) => other?.Player.ObjectID == Player.ObjectID;

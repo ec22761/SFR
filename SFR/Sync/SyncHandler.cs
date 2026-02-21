@@ -223,6 +223,15 @@ internal static class SyncHandler
                     extendedPlayer.GenericJetpack.Fuel.CurrentValue = jetPackFuel;
                 }
 
+                if (data.Args.Length > 4)
+                {
+                    bool leapBoost = (bool)data.Args[4];
+                    if (!extendedPlayer.LeapBoost && leapBoost)
+                    {
+                        extendedPlayer.LeapBoost = true;
+                    }
+                }
+
                 break;
         }
     }

@@ -1,4 +1,6 @@
-﻿using HarmonyLib;
+﻿using Box2D.XNA;
+using HarmonyLib;
+using Microsoft.Xna.Framework;
 using SFD;
 using SFD.Weapons;
 using SFR.Fighter.Jetpacks;
@@ -248,6 +250,31 @@ internal static class PlayerHandler
 
         ExtendedPlayer extendedPlayer = __instance.GetExtension();
         extendedPlayer.GenericJetpack?.Update(ms, extendedPlayer);
+
+        // Leap boost: apply extra upward velocity when player initiates a jump
+        if (extendedPlayer.LeapBoost)
+        {
+            bool isGrounded = __instance.StandingOnGround;
+            if (extendedPlayer.WasGrounded && !isGrounded)
+            {
+                Vector2 velocity = __instance.WorldBody.GetLinearVelocity();
+                if (velocity.Y > 0f)
+                {
+                    velocity.Y *= 1.75f;
+                    __instance.WorldBody.SetLinearVelocity(velocity);
+                    __instance.m_preBox2DLinearVelocity = velocity;
+                    __instance.AirControlBaseVelocity = velocity;
+                    __instance.ForceServerPositionState();
+                    __instance.ImportantUpdate = true;
+                }
+            }
+
+            extendedPlayer.WasGrounded = isGrounded;
+        }
+        else
+        {
+            extendedPlayer.WasGrounded = __instance.StandingOnGround;
+        }
     }
 
     [HarmonyPrefix]
@@ -402,5 +429,25 @@ internal static class PlayerHandler
                 extendedPlayer.DisableAdrenalineBoost();
             }
         }
+
+        if (extendedPlayer.LeapBoost)
+        {
+            extendedPlayer.Time.LeapBoost -= ms;
+            if (!extendedPlayer.LeapBoost || player.IsDead)
+            {
+                extendedPlayer.DisableLeapBoost();
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Prevent fall damage while Leap Boost is active.
+    /// </summary>
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(Player), "TakeFallDamage")]
+    private static bool TakeFallDamage(Player __instance)
+    {
+        ExtendedPlayer extendedPlayer = __instance.GetExtension();
+        return !extendedPlayer.LeapBoost;
     }
 }

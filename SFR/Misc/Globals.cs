@@ -9,6 +9,7 @@ internal static class Globals
     internal const int Build = 0;
     internal static readonly Random Random = new();
     internal static readonly Color RageBoost = new(210, 130, 50);
+    internal static readonly Color LeapBoost = new(50, 210, 80);
     internal static bool QuickStart = false;
     internal static string DebugMap = string.Empty;
     internal static bool IsDev => SFRVersion.EndsWith("_dev");
