@@ -21,9 +21,9 @@ internal static class InputHandler
     /// </summary>
     [HarmonyPrefix]
     [HarmonyPatch(typeof(Player), "HandleGamePadCodeEvent")]
-    private static void FixStickDirection(GamePadCode gamePadCode, VIRTUAL_KEY_EVENT virtualKeyEvent, Player __instance)
+    private static void FixStickDirection(GamePadCode gamePadCode, VIRTUAL_KEY_EVENT keyEvent, Player __instance)
     {
-        if (virtualKeyEvent != VIRTUAL_KEY_EVENT.Pressed)
+        if (keyEvent != VIRTUAL_KEY_EVENT.Pressed)
         {
             return;
         }
