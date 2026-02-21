@@ -88,6 +88,7 @@
     <Compile Include="Fighter\ExtendedPlayer.cs" />
     <Compile Include="Fighter\GadgetHandler.cs" />
     <Compile Include="Fighter\GoreHandler.cs" />
+    <Compile Include="Fighter\InputHandler.cs" />
     <Compile Include="Fighter\DevHandler.cs" />
     <Compile Include="Fighter\Jetpacks\GenericJetpack.cs" />
     <Compile Include="Fighter\Jetpacks\Gunpack.cs" />
