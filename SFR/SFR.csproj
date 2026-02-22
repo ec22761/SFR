@@ -161,6 +161,7 @@
     <Compile Include="UI\MenuItemLabel.cs" />
     <Compile Include="Weapons\Database.cs" />
     <Compile Include="Weapons\Handguns\Anaconda.cs" />
+    <Compile Include="Weapons\Handguns\Snaphook.cs" />
     <Compile Include="Weapons\Rifles\Blowpipe.cs" />
     <Compile Include="Weapons\Handguns\Flintlock.cs" />
     <Compile Include="Weapons\Handguns\NailGun.cs" />

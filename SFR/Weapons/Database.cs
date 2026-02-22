@@ -23,7 +23,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[116];
+        WeaponDatabase.m_weapons = new WeaponItem[117];
 
         Weapons ??=
         [
@@ -52,6 +52,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Handgun, new UnkemptHarold()), // 85
             new WeaponItem(WeaponItemType.Handgun, new StickyLauncher()), // 86
             new WeaponItem(WeaponItemType.Handgun, new Anaconda()), // 109
+            new WeaponItem(WeaponItemType.Handgun, new Snaphook()), // 116
 
             // Throwable
             new WeaponItem(WeaponItemType.Thrown, new Claymore()), // 87
@@ -222,6 +223,7 @@ internal static class Database
             { 113, 10 }, // Leap Mine
             { 114, 10 }, // Blowpipe
             //{ 115, 8 } // Mimic Mine
+            { 116, 8 }, // Snaphook
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -343,6 +345,7 @@ internal static class Database
         ShowStopper,
         LeapMine,
         Blowpipe,
-        MimicMine
+        MimicMine,
+        Snaphook
     }
 }

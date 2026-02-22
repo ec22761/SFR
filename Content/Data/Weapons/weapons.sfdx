@@ -287,6 +287,33 @@ Tile(WpnAnaconda)
 		blockFire = false;
 	}
 }
+Tile(WpnSnaphook)
+{
+	tileTexture = SnaphookM;
+	material = metal;
+	material.blockExplosions = false;
+	pickupType = instant;
+	pickupRange = 10.0;
+	absorbProjectile = false;
+	projectileHit = false;
+	impactEffect = ImpactDefault;
+	impactSound = WeaponBounce;
+	missileDamageMax = 10;
+	fixture()
+	{
+		collisionGroup = debris;
+		mass = 2.5 kg;
+		collisionPoints = (-3.5, 1.5), (5.5, 1.5), (5.5, 3.5), (-2.5, 3.5), (-3.5, 2.5);
+		blockFire = false;
+	}
+	fixture(grip)
+	{
+		collisionGroup = debris;
+		mass = 2.5 kg;
+		collisionPoints = (-3.5, -1.5), (-1.5, -1.5), (-1.5, 1.5), (-3.5, 1.5);
+		blockFire = false;
+	}
+}
 Tile(WpnBlowpipe)
 {
 	tileTexture = BlowpipeM;
