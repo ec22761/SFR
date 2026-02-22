@@ -3031,6 +3031,57 @@ Tile(WpnGasGrenadesThrown)
 		blockFire = false;
 	}
 }
+Tile(WpnShowStopper)
+{
+	tileTexture = ShowStopperM;
+	pickupType = instant;
+	pickupRange = 10.0;
+	impactEffect = ImpactDefault;
+	impactSound = GrenadeBounce;
+	fixture()
+	{
+		mass = 5 kg;
+		collisionGroup = debris;
+		circle = (-0.5, 0.5, 2);
+		blockFire = false;
+	}
+	fixture(pin)
+	{
+		mass = 2.5 kg;
+		collisionGroup = debris;
+		collisionPoints = (-2, 2), (1.5, 2), (1.5, 4), (-2, 4);
+		blockFire = false;
+	}
+}
+Tile(WpnShowStopperThrown)
+{
+	absorbProjectile = true;
+	projectileHit = true;
+	tileTexture = ShowStopperT;
+	drawCategory = THRN;
+	mainLayer = 1;
+	editorEnabled = true;
+	material.restitution = 0.3;
+	material.blockExplosions = false;
+	material.hit.melee.sound = MeleeBlock;
+	material.hit.melee.effect = HIT;
+	material.hit.Melee.Prio = 10;
+	material.resistance.impact.modifier = 0.0;
+	gibpressure.total = 250 kg;
+	gibpressure.spike = 1600 kg;
+	kickable = true;
+	punchable = true;
+	impactEffect = ImpactDefault;
+	impactSound = GrenadeBounce;
+	type = Dynamic;
+	fixture()
+	{
+		mass = 5 kg;
+		collisionGroup = dynamics_thrown;
+		circle = (-0.5, 0.5, 2);
+		blockFire = false;
+	}
+}
 
 // disable editorEnabled again
 defaultTile(default_tile)

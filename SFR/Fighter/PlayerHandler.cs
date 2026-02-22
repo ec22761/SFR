@@ -5,6 +5,7 @@ using SFD;
 using SFD.Weapons;
 using SFR.Fighter.Jetpacks;
 using SFR.Helper;
+using SFR.Misc;
 using SFR.Objects;
 using SFR.Weapons;
 using SFR.Weapons.Melee;
@@ -436,6 +437,36 @@ internal static class PlayerHandler
             if (!extendedPlayer.LeapBoost || player.IsDead)
             {
                 extendedPlayer.DisableLeapBoost();
+            }
+        }
+
+        if (extendedPlayer.Electrocuted)
+        {
+            extendedPlayer.Time.Electrocution -= ms;
+
+            // Keep input locked while electrocuted
+            if (player.InputMode != SFDGameScriptInterface.PlayerInputMode.ReadOnly && !player.IsDead)
+            {
+                player.SetInputMode(SFDGameScriptInterface.PlayerInputMode.ReadOnly);
+            }
+
+            // Force the death-kneel animation so the player looks like they're being zapped
+            if (!player.IsDead && !player.IsRemoved)
+            {
+                player.DeathKneeling = true;
+
+                // Play blue spark effects periodically
+                if (extendedPlayer.Time.Electrocution % 150f < ms)
+                {
+                    SFD.Effects.EffectHandler.PlayEffect("S_P", player.Position + new Vector2(
+                        Globals.Random.NextFloat(-4f, 4f),
+                        Globals.Random.NextFloat(0f, 12f)), player.GameWorld, 0.7f);
+                }
+            }
+
+            if (!extendedPlayer.Electrocuted || player.IsDead)
+            {
+                extendedPlayer.DisableElectrocution();
             }
         }
     }

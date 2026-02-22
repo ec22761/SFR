@@ -187,6 +187,9 @@ internal static class ObjectsHandler
             case "WPNGASGRENADESTHROWN":
                 __result = new ObjectGasGrenadeThrown(startParams);
                 return false;
+            case "WPNSHOWSTOPPERTHROWN":
+                __result = new ObjectShowStopperThrown(startParams);
+                return false;
             case "WPNCLAYMORETHROWN":
                 __result = new ObjectClaymoreThrown(startParams);
                 return false;

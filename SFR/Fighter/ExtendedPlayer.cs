@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using SFD;
 using SFD.Sounds;
+using SFDGameScriptInterface;
 using SFR.Fighter.Jetpacks;
 using SFR.Sync.Generic;
 
@@ -33,6 +34,12 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         set => Time.LeapBoost = value ? TimeSequence.LeapBoostTime : 0f;
     }
 
+    internal bool Electrocuted
+    {
+        get => Time.Electrocution > 0f;
+        set => Time.Electrocution = value ? TimeSequence.ElectrocutionTime : 0f;
+    }
+
     /// <summary>
     ///     Tracks whether the player was on the ground last frame,
     ///     so we can detect jump transitions for the leap boost.
@@ -55,7 +62,7 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
 
     internal object[] GetStates()
     {
-        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost];
+        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost, Electrocuted];
         return states;
     }
 
@@ -73,12 +80,26 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         SoundHandler.PlaySound("StrengthBoostStop", Player.Position, Player.GameWorld);
     }
 
+    internal void DisableElectrocution()
+    {
+        Electrocuted = false;
+        if (!Player.IsDead && !Player.IsRemoved)
+        {
+            Player.SetInputMode(PlayerInputMode.Enabled);
+            Player.DeathKneeling = false;
+        }
+
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+    }
+
     internal class TimeSequence
     {
         internal const float AdrenalineBoostTime = 20000f;
         internal const float LeapBoostTime = 20000f;
+        internal const float ElectrocutionTime = 6000f;
         internal float AdrenalineBoost;
         internal float LeapBoost;
+        internal float Electrocution;
     }
 
     public bool Equals(ExtendedPlayer other) => other?.Player.ObjectID == Player.ObjectID;

@@ -117,6 +117,7 @@
     <Compile Include="Objects\ObjectDoor.cs" />
     <Compile Include="Objects\ObjectFragGrenadeThrown.cs" />
     <Compile Include="Objects\ObjectGasGrenadeThrown.cs" />
+    <Compile Include="Objects\ObjectShowStopperThrown.cs" />
     <Compile Include="Objects\ObjectHead.cs" />
     <Compile Include="Objects\ObjectImpactGrenadeThrown.cs" />
     <Compile Include="Objects\ObjectInvisibleBlockWeak.cs" />
@@ -201,6 +202,7 @@
     <Compile Include="Weapons\Thrown\ImpactGrenade.cs" />
     <Compile Include="Weapons\Thrown\Snowball.cs" />
     <Compile Include="Weapons\Thrown\StickyBomb.cs" />
+    <Compile Include="Weapons\Thrown\ShowStopper.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

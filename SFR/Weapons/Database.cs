@@ -23,7 +23,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[112];
+        WeaponDatabase.m_weapons = new WeaponItem[113];
 
         Weapons ??=
         [
@@ -60,6 +60,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Thrown, new Snowball()), // 90
             new WeaponItem(WeaponItemType.Thrown, new StickyBomb()), // 91
             new WeaponItem(WeaponItemType.Thrown, new GasGrenade()), // 111
+            new WeaponItem(WeaponItemType.Thrown, new ShowStopper()), // 112
 
             // Rifle
             new WeaponItem(WeaponItemType.Rifle, new AA12()), // 93
@@ -189,7 +190,7 @@ internal static class Database
             { 84, 18 }, // Switchblade
             { 85, 4 }, // UnkemptHarold
             { 86, 9 }, // StickyLauncher
-            { 87, 15 }, // Claymore
+            // { 87, 15 }, // Claymore
             { 88, 16 }, // Frag grenade
             { 89, 12 }, // Impact grenade
             // { 90, 1 }, // Snowball
@@ -213,7 +214,8 @@ internal static class Database
             { 108, 8 }, // Scythe
             { 109, 10 }, // Anaconda
             { 110, 12 }, // Leap boost
-            { 111, 10 } // Gas grenade
+            // { 111, 10 } // Gas grenade
+            { 112, 8 } // Show Stopper
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -331,6 +333,7 @@ internal static class Database
         Jetpack,
         JetpackEditor,
         Gunpack,
-        GasGrenade
+        GasGrenade,
+        ShowStopper
     }
 }

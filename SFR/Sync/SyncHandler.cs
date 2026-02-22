@@ -232,6 +232,20 @@ internal static class SyncHandler
                     }
                 }
 
+                if (data.Args.Length > 5)
+                {
+                    bool electrocuted = (bool)data.Args[5];
+                    if (!extendedPlayer.Electrocuted && electrocuted)
+                    {
+                        extendedPlayer.Electrocuted = true;
+                        extendedPlayer.Time.Electrocution = ExtendedPlayer.TimeSequence.ElectrocutionTime;
+                    }
+                    else if (extendedPlayer.Electrocuted && !electrocuted)
+                    {
+                        extendedPlayer.Electrocuted = false;
+                    }
+                }
+
                 break;
         }
     }
