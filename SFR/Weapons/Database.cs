@@ -202,7 +202,7 @@ internal static class Database
             { 93, 12 }, // AA12
             { 94, 8 }, // Barrett
             { 95, 9 }, // Blunderbuss
-            { 96, 15 }, // Crossbow
+            { 96, 10 }, // Crossbow
             { 97, 8 }, // Double barrel
             { 98, 18 }, // Musket
             { 99, 7 }, // Quad launcher
