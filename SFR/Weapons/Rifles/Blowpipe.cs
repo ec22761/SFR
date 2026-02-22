@@ -13,8 +13,8 @@ internal sealed class Blowpipe : RWeapon
         {
             MaxMagsInWeapon = 1,
             MaxRoundsInMag = 1,
-            MaxCarriedSpareMags = 6,
-            StartMags = 3,
+            MaxCarriedSpareMags = 10,
+            StartMags = 5,
             CooldownBeforePostAction = 600,
             CooldownAfterPostAction = 0,
             ExtraAutomaticCooldown = 0,
@@ -23,13 +23,13 @@ internal sealed class Blowpipe : RWeapon
             ProjectileID = 114,
             MuzzlePosition = new Vector2(10f, -2f),
             MuzzleEffectTextureID = "",
-            BlastSoundID = "PistolFire",
-            DrawSoundID = "PistolDraw",
-            GrabAmmoSoundID = "PistolReload",
+            BlastSoundID = "BowShoot",
+            DrawSoundID = "GrenadeDraw",
+            GrabAmmoSoundID = "GrenadeDraw",
             OutOfAmmoSoundID = "OutOfAmmoLight",
             CursorAimOffset = new Vector2(0f, 3f),
             LazerPosition = new Vector2(8f, -0.5f),
-            AimStartSoundID = "PistolAim",
+            AimStartSoundID = "Draw1",
             AI_DamageOutput = DamageOutputType.Low,
             BreakDebris = ["ItemDebrisDark00", "ItemDebrisDark01"],
             SpecialAmmoBulletsRefill = 6,
@@ -52,7 +52,7 @@ internal sealed class Blowpipe : RWeapon
             AnimDraw = "UpperDrawRifle",
             AnimManualAim = "ManualAimRifle",
             AnimManualAimStart = "ManualAimRifleStart",
-            AnimReloadUpper = "UpperReload",
+            AnimReloadUpper = "UpperReloadBazooka",
             AnimFullLand = "FullLandHandgun",
             AnimToggleThrowingMode = "UpperToggleThrowing"
         };
@@ -78,16 +78,15 @@ internal sealed class Blowpipe : RWeapon
 
     public override void OnSubAnimationEvent(Player player, AnimationEvent animationEvent, AnimationData animationData, int currentFrameIndex)
     {
-        if (player.GameOwner != GameOwnerEnum.Server && animationEvent == AnimationEvent.EnterFrame && animationData.Name == "UpperDrawRifle")
+        if (player.GameOwner != GameOwnerEnum.Server && animationEvent == AnimationEvent.EnterFrame)
         {
-            switch (currentFrameIndex)
+            if (animationData.Name == "UpperReloadBazooka" && currentFrameIndex == 1)
             {
-                case 1:
-                    SoundHandler.PlaySound("Draw1", player.GameWorld);
-                    break;
-                case 6:
-                    SoundHandler.PlaySound("PistolDraw", player.GameWorld);
-                    break;
+                SoundHandler.PlaySound("BowDrawback", player.GameWorld);
+            }
+            else if (animationData.Name == "UpperDrawRifle" && currentFrameIndex == 1)
+            {
+                SoundHandler.PlaySound("BowDrawback", player.GameWorld);
             }
         }
     }

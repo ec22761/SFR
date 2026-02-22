@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using SFD;
 using SFD.Effects;
 using SFD.Materials;
+using SFD.Objects;
 using SFD.Projectiles;
 using SFD.Sounds;
 using SFD.Tiles;
@@ -11,7 +12,7 @@ using SFR.Helper;
 
 namespace SFR.Projectiles;
 
-internal sealed class ProjectileBlowpipe : Projectile
+internal sealed class ProjectileBlowpipe : Projectile, IExtendedProjectile
 {
     private float _gravity;
     private float _velocity;
@@ -33,6 +34,20 @@ internal sealed class ProjectileBlowpipe : Projectile
     }
 
     public override float SlowmotionFactor => 1f - (1f - GameWorld.SlowmotionHandler.SlowmotionModifier) * 0.5f;
+
+    public bool OnHit(Projectile projectile, ProjectileHitEventArgs e, ObjectData objectData) => true;
+
+    public bool OnExplosiveHit(Projectile projectile, ProjectileHitEventArgs e, ObjectExplosive objectData)
+    {
+        ObjectDataMethods.ApplyProjectileHitImpulse(objectData, projectile, e);
+        return false;
+    }
+
+    public bool OnExplosiveBarrelHit(Projectile projectile, ProjectileHitEventArgs e, ObjectBarrelExplosive objectData)
+    {
+        ObjectDataMethods.ApplyProjectileHitImpulse(objectData, projectile, e);
+        return false;
+    }
 
     public override Projectile Copy()
     {

@@ -28,14 +28,11 @@ internal sealed class ObjectMimicMineThrown : ObjectData
     // --- Tuning constants ---
     private const float ArmDuration = 2000f;
     private const float DetonateDelay = 100f;
-    private const float PickupDetectionRange = 12f;
-    private const float ScanInterval = 100f;
 
     // --- State ---
     private MimicState _state = MimicState.Airborne;
     private float _armTimer;
     private float _detonateTimer = DetonateDelay;
-    private float _scanTimer;
     private int _disguiseVariant;
 
     // --- Sticky ---
@@ -150,7 +147,6 @@ internal sealed class ObjectMimicMineThrown : ObjectData
                 UpdateArming(ms);
                 break;
             case MimicState.Disguised:
-                UpdateDisguised(ms);
                 break;
             case MimicState.Detonating:
                 UpdateDetonating(ms);
@@ -201,44 +197,24 @@ internal sealed class ObjectMimicMineThrown : ObjectData
         if (_armTimer <= 0f)
         {
             Properties.Get(ObjectPropertyID.Mine_Status).Value = 2;
+
+            // Enable interact prompt so players think it's a pickup
+            Activateable = true;
+            ActivateableHighlightning = true;
+            ActivateRange = 14f;
         }
     }
 
-    private void UpdateDisguised(float ms)
+    /// <summary>
+    /// Called when a player presses the interact button on this object.
+    /// Triggers the detonation sequence.
+    /// </summary>
+    public override void Activate(ObjectData sender)
     {
-        if (GameOwner == GameOwnerEnum.Client)
+        if (_state == MimicState.Disguised && GameOwner != GameOwnerEnum.Client)
         {
-            return;
-        }
-
-        _scanTimer -= ms;
-        if (_scanTimer <= 0f)
-        {
-            _scanTimer = ScanInterval;
-
-            // Check if any player is within pickup range
-            Vector2 position = GetWorldPosition();
-            AABB.Create(out AABB area, position, position, PickupDetectionRange);
-
-            foreach (ObjectData obj in GameWorld.GetObjectDataByArea(area, false, SFDGameScriptInterface.PhysicsLayer.Active))
-            {
-                if (obj.InternalData is Player player && !player.IsDead && !player.IsRemoved)
-                {
-                    if (player.ObjectID == BodyID)
-                    {
-                        continue;
-                    }
-
-                    float distance = Vector2.Distance(player.Position, position);
-                    if (distance <= PickupDetectionRange)
-                    {
-                        // Someone tried to pick us up — detonate!
-                        Properties.Get(ObjectPropertyID.Mine_Status).Value = 3;
-                        SoundHandler.PlaySound("MineTrigger", GameWorld);
-                        break;
-                    }
-                }
-            }
+            Properties.Get(ObjectPropertyID.Mine_Status).Value = 3;
+            SoundHandler.PlaySound("MineTrigger", GameWorld);
         }
     }
 

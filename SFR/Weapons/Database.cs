@@ -221,7 +221,7 @@ internal static class Database
             { 112, 10 }, // Show Stopper
             { 113, 10 }, // Leap Mine
             { 114, 10 }, // Blowpipe
-            { 115, 8 } // Mimic Mine
+            //{ 115, 8 } // Mimic Mine
         };
 
         __result = WeaponItem.ID.m_wpns;
