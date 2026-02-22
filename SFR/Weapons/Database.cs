@@ -23,7 +23,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[113];
+        WeaponDatabase.m_weapons = new WeaponItem[114];
 
         Weapons ??=
         [
@@ -61,6 +61,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Thrown, new StickyBomb()), // 91
             new WeaponItem(WeaponItemType.Thrown, new GasGrenade()), // 111
             new WeaponItem(WeaponItemType.Thrown, new ShowStopper()), // 112
+            new WeaponItem(WeaponItemType.Thrown, new SpiderMine()), // 113
 
             // Rifle
             new WeaponItem(WeaponItemType.Rifle, new AA12()), // 93
@@ -188,7 +189,7 @@ internal static class Database
             { 82, 16 }, // RiotShield,
             { 83, 16 }, // Sledgehammer
             { 84, 18 }, // Switchblade
-            { 85, 4 }, // UnkemptHarold
+            // { 85, 4 }, // UnkemptHarold
             { 86, 9 }, // StickyLauncher
             // { 87, 15 }, // Claymore
             { 88, 16 }, // Frag grenade
@@ -210,12 +211,13 @@ internal static class Database
             { 104, 17 }, // Jetpack
             // 105, Jetpack editor
             { 106, 14 }, // Gunpack
-            { 107, 12 }, // AK47
-            { 108, 8 }, // Scythe
+            //{ 107, 10 }, // AK47
+            //{ 108, 8 }, // Scythe
             { 109, 10 }, // Anaconda
             { 110, 12 }, // Leap boost
-            // { 111, 10 } // Gas grenade
-            { 112, 8 } // Show Stopper
+            { 111, 12 }, // Gas grenade
+            { 112, 12 }, // Show Stopper
+            { 113, 10 } // Spider Mine
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -334,6 +336,7 @@ internal static class Database
         JetpackEditor,
         Gunpack,
         GasGrenade,
-        ShowStopper
+        ShowStopper,
+        SpiderMine
     }
 }

@@ -126,6 +126,7 @@
     <Compile Include="Objects\ObjectSnowballThrown.cs" />
     <Compile Include="Objects\ObjectStickyBombThrown.cs" />
     <Compile Include="Objects\ObjectStickyProjectile.cs" />
+    <Compile Include="Objects\ObjectSpiderMineThrown.cs" />
     <Compile Include="Projectiles\Database.cs" />
     <Compile Include="Projectiles\IExtendedProjectile.cs" />
     <Compile Include="Projectiles\ProjectileBarrett.cs" />
@@ -203,6 +204,7 @@
     <Compile Include="Weapons\Thrown\Snowball.cs" />
     <Compile Include="Weapons\Thrown\StickyBomb.cs" />
     <Compile Include="Weapons\Thrown\ShowStopper.cs" />
+    <Compile Include="Weapons\Thrown\SpiderMine.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
