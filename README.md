@@ -59,7 +59,7 @@ You can download the latest version of Superfighters Redux [here](https://github
 ## Setup
 
 1. Extract the downloaded archive into your `Superfighters Deluxe` folder. If you have a previous SFR installation, ensure it is deleted first.
-2. Open Steam and change `Superfighters Deluxe` launch options to `cmd /k "%command%\..\SFR.exe"`.
+2. Open Steam and change `Superfighters Deluxe` launch options to `cmd /c "%command%\..\SFR.exe"`.
 
 </details>
 

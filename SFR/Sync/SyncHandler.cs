@@ -246,6 +246,20 @@ internal static class SyncHandler
                     }
                 }
 
+                if (data.Args.Length > 6)
+                {
+                    bool poisoned = (bool)data.Args[6];
+                    if (!extendedPlayer.Poisoned && poisoned)
+                    {
+                        extendedPlayer.Poisoned = true;
+                        extendedPlayer.Time.Poison = ExtendedPlayer.TimeSequence.PoisonTime;
+                    }
+                    else if (extendedPlayer.Poisoned && !poisoned)
+                    {
+                        extendedPlayer.Poisoned = false;
+                    }
+                }
+
                 break;
         }
     }

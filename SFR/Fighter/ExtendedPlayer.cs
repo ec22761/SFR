@@ -40,6 +40,12 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         set => Time.Electrocution = value ? TimeSequence.ElectrocutionTime : 0f;
     }
 
+    internal bool Poisoned
+    {
+        get => Time.Poison > 0f;
+        set => Time.Poison = value ? TimeSequence.PoisonTime : 0f;
+    }
+
     /// <summary>
     ///     Tracks whether the player was on the ground last frame,
     ///     so we can detect jump transitions for the leap boost.
@@ -62,7 +68,7 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
 
     internal object[] GetStates()
     {
-        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost, Electrocuted];
+        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost, Electrocuted, Poisoned];
         return states;
     }
 
@@ -92,14 +98,31 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
     }
 
+    internal void ApplyPoison()
+    {
+        Poisoned = true;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+    }
+
+    internal void DisablePoison()
+    {
+        Poisoned = false;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+    }
+
     internal class TimeSequence
     {
         internal const float AdrenalineBoostTime = 20000f;
         internal const float LeapBoostTime = 20000f;
         internal const float ElectrocutionTime = 6000f;
+        internal const float PoisonTime = 5000f;
+        internal const float PoisonDamagePerTick = 2f;
+        internal const float PoisonTickInterval = 500f;
         internal float AdrenalineBoost;
         internal float LeapBoost;
         internal float Electrocution;
+        internal float Poison;
+        internal float PoisonTickTimer;
     }
 
     public bool Equals(ExtendedPlayer other) => other?.Player.ObjectID == Player.ObjectID;

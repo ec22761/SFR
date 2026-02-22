@@ -469,6 +469,37 @@ internal static class PlayerHandler
                 extendedPlayer.DisableElectrocution();
             }
         }
+
+        if (extendedPlayer.Poisoned)
+        {
+            extendedPlayer.Time.Poison -= ms;
+            extendedPlayer.Time.PoisonTickTimer -= ms;
+
+            if (extendedPlayer.Time.PoisonTickTimer <= 0f)
+            {
+                extendedPlayer.Time.PoisonTickTimer = ExtendedPlayer.TimeSequence.PoisonTickInterval;
+                if (!player.IsDead && !player.IsRemoved && player.GameOwner != GameOwnerEnum.Client)
+                {
+                    player.TakeMiscDamage(ExtendedPlayer.TimeSequence.PoisonDamagePerTick);
+                }
+            }
+
+            // Play green particle effects periodically on client
+            if (!player.IsDead && !player.IsRemoved && player.GameOwner != GameOwnerEnum.Server)
+            {
+                if (extendedPlayer.Time.Poison % 200f < ms)
+                {
+                    SFD.Effects.EffectHandler.PlayEffect("TR_S", player.Position + new Microsoft.Xna.Framework.Vector2(
+                        Globals.Random.NextFloat(-4f, 4f),
+                        Globals.Random.NextFloat(0f, 12f)), player.GameWorld);
+                }
+            }
+
+            if (!extendedPlayer.Poisoned || player.IsDead)
+            {
+                extendedPlayer.DisablePoison();
+            }
+        }
     }
 
     /// <summary>

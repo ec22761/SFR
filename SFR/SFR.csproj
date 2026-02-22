@@ -141,6 +141,7 @@
     <Compile Include="Projectiles\ProjectileNailGun.cs" />
     <Compile Include="Projectiles\ProjectileRCM.cs" />
     <Compile Include="Projectiles\ProjectileWinchester.cs" />
+    <Compile Include="Projectiles\ProjectileBlowpipe.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>true</AutoGen>
       <DesignTime>true</DesignTime>
@@ -159,6 +160,7 @@
     <Compile Include="UI\MenuItemLabel.cs" />
     <Compile Include="Weapons\Database.cs" />
     <Compile Include="Weapons\Handguns\Anaconda.cs" />
+    <Compile Include="Weapons\Handguns\Blowpipe.cs" />
     <Compile Include="Weapons\Handguns\Flintlock.cs" />
     <Compile Include="Weapons\Handguns\NailGun.cs" />
     <Compile Include="Weapons\Handguns\StickyLauncher.cs" />
