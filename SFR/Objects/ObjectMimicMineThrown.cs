@@ -295,7 +295,7 @@ internal sealed class ObjectMimicMineThrown : ObjectData
     {
         if (GameOwner != GameOwnerEnum.Client)
         {
-            _ = GameWorld.TriggerExplosion(GetWorldPosition(), 80f);
+            _ = GameWorld.TriggerExplosion(GetWorldPosition(), 140f);
             SoundHandler.PlaySound("Explosion", GetWorldPosition(), GameWorld);
             EffectHandler.PlayEffect("EXP", GetWorldPosition(), GameWorld);
             EffectHandler.PlayEffect("CAM_S", GetWorldPosition(), GameWorld, 8f, 250f, false);
