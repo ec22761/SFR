@@ -23,7 +23,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[115];
+        WeaponDatabase.m_weapons = new WeaponItem[116];
 
         Weapons ??=
         [
@@ -53,9 +53,6 @@ internal static class Database
             new WeaponItem(WeaponItemType.Handgun, new StickyLauncher()), // 86
             new WeaponItem(WeaponItemType.Handgun, new Anaconda()), // 109
 
-            // Blowpipe
-            new WeaponItem(WeaponItemType.Handgun, new Blowpipe()), // 114
-
             // Throwable
             new WeaponItem(WeaponItemType.Thrown, new Claymore()), // 87
             new WeaponItem(WeaponItemType.Thrown, new FragGrenade()), // 88
@@ -64,7 +61,8 @@ internal static class Database
             new WeaponItem(WeaponItemType.Thrown, new StickyBomb()), // 91
             new WeaponItem(WeaponItemType.Thrown, new GasGrenade()), // 111
             new WeaponItem(WeaponItemType.Thrown, new ShowStopper()), // 112
-            new WeaponItem(WeaponItemType.Thrown, new SpiderMine()), // 113
+            new WeaponItem(WeaponItemType.Thrown, new LeapMine()), // 113
+            new WeaponItem(WeaponItemType.Thrown, new MimicMine()), // 115
 
             // Rifle
             new WeaponItem(WeaponItemType.Rifle, new AA12()), // 93
@@ -78,6 +76,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Rifle, new Winchester()), // 101
             new WeaponItem(WeaponItemType.Rifle, new Minigun()), // 102
             new WeaponItem(WeaponItemType.Rifle, new AK47()), // 107
+            new WeaponItem(WeaponItemType.Rifle, new Blowpipe()), // 114
 
             // Pickup
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
@@ -211,17 +210,18 @@ internal static class Database
             { 101, 12 }, // Winchester
             { 102, 6 }, // Minigun
             { 103, 12 }, // Adrenaline boost
-            { 104, 17 }, // Jetpack
+            { 104, 14 }, // Jetpack
             // 105, Jetpack editor
-            { 106, 14 }, // Gunpack
-            //{ 107, 10 }, // AK47
-            //{ 108, 8 }, // Scythe
+            { 106, 10 }, // Gunpack
+            { 107, 10 }, // AK47
+            { 108, 8 }, // Scythe
             { 109, 10 }, // Anaconda
             { 110, 12 }, // Leap boost
-            { 111, 12 }, // Gas grenade
-            { 112, 12 }, // Show Stopper
-            { 113, 10 }, // Spider Mine
-            { 114, 10 } // Blowpipe
+            { 111, 14 }, // Gas grenade
+            { 112, 10 }, // Show Stopper
+            { 113, 10 }, // Leap Mine
+            { 114, 10 }, // Blowpipe
+            { 115, 8 } // Mimic Mine
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -341,7 +341,8 @@ internal static class Database
         Gunpack,
         GasGrenade,
         ShowStopper,
-        SpiderMine,
-        Blowpipe
+        LeapMine,
+        Blowpipe,
+        MimicMine
     }
 }

@@ -194,7 +194,10 @@ internal static class ObjectsHandler
                 __result = new ObjectClaymoreThrown(startParams);
                 return false;
             case "WPNSPIDERMINETHROWN":
-                __result = new ObjectSpiderMineThrown(startParams);
+                __result = new ObjectLeapMineThrown(startParams);
+                return false;
+            case "WPNMIMICMINETHROWN":
+                __result = new ObjectMimicMineThrown(startParams);
                 return false;
             case "FROGGY00":
                 __result = new ObjectFroggy(startParams);

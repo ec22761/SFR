@@ -4,17 +4,17 @@ using SFD.Weapons;
 
 namespace SFR.Weapons.Thrown;
 
-internal sealed class SpiderMine : TWeapon
+internal sealed class LeapMine : TWeapon
 {
-    internal SpiderMine()
+    internal LeapMine()
     {
-        TWeaponProperties weaponProperties = new(113, "Spider_Mine", "WpnSpiderMine", false, WeaponCategory.Supply)
+        TWeaponProperties weaponProperties = new(113, "Leap_Mine", "WpnSpiderMine", false, WeaponCategory.Supply)
         {
             MaxCarriedTotalThrowables = 3,
             NumberOfThrowables = 2,
             ThrowObjectID = "WpnSpiderMineThrown",
             DrawSoundID = "GrenadeDraw",
-            VisualText = "Spider Mines"
+            VisualText = "Leap Mines"
         };
 
         TWeaponVisuals weaponVisuals = new()
@@ -43,7 +43,7 @@ internal sealed class SpiderMine : TWeapon
         NumberOfThrowablesLeft = Properties.NumberOfThrowables;
     }
 
-    private SpiderMine(TWeaponProperties weaponProperties, TWeaponVisuals weaponVisuals)
+    private LeapMine(TWeaponProperties weaponProperties, TWeaponVisuals weaponVisuals)
     {
         SetPropertiesAndVisuals(weaponProperties, weaponVisuals);
         NumberOfThrowablesLeft = weaponProperties.NumberOfThrowables;
@@ -75,7 +75,7 @@ internal sealed class SpiderMine : TWeapon
 
     public override void OnDeadline(TWeaponOnDeadlineArgs e) => e.Action = TWeaponDeadlineAction.Drop;
 
-    public override TWeapon Copy() => new SpiderMine(Properties, Visuals)
+    public override TWeapon Copy() => new LeapMine(Properties, Visuals)
     {
         NumberOfThrowablesLeft = NumberOfThrowablesLeft
     };

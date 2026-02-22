@@ -17,55 +17,35 @@ using Player = SFD.Player;
 namespace SFR.Objects;
 
 /// <summary>
-/// Spider Mine — a thrown mine that sticks to surfaces and arms itself.
-/// When a player walks near, it triggers and leaps at them. After landing,
-/// it runs along the ground toward the player, jumping over obstacles.
-/// Explodes on proximity or direct player contact.
-/// If the target is lost (dead/removed), it resticks and waits for the next player.
+/// Leap Mine — a thrown mine that sticks to surfaces and arms itself.
+/// When a player walks near, it triggers and leaps at them.
+/// Explodes on player contact or after 3 seconds.
 /// </summary>
-internal sealed class ObjectSpiderMineThrown : ObjectData
+internal sealed class ObjectLeapMineThrown : ObjectData
 {
     // --- Tuning constants ---
     private const float ArmDuration = 2000f;
-    private const float DetonateDelay = 150f;
     private const float ExplosionPower = 80f;
     private const float DetectionRadius = 80f;
     private const float ScanInterval = 200f;
+    private const float FuseDuration = 3000f;
     private const float ProximityDetonateRange = 14f;
 
-    // --- Initial leap ---
+    // --- Leap ---
     private const float LeapSpeed = 9f;
     private const float LeapArcLift = 18f;
 
-    // --- Ground chase ---
-    private const float RunSpeed = 4f;
-    private const float JumpSpeed = 6f;
-    private const float ObstacleProbeRange = 5f;
-    private const float ObstacleProbeHeight = 3f;
-    private const float GroundProbeRange = 3f;
-
-    // --- Animation ---
-    private const float WalkAnimInterval = 100f;
-
     // --- State ---
-    private SpiderState _state = SpiderState.Airborne;
+    private LeapMineState _state = LeapMineState.Airborne;
     private float _armTimer;
-    private float _detonateTimer = DetonateDelay;
+    private float _fuseTimer;
     private float _scanTimer;
-    private bool _hasLeaped;
-    private bool _onGround;
-
-    // --- Chase ---
     private Player _target;
 
     // --- Surface ---
     private Vector2 _surfaceNormal = new(0, 1);
     private float _surfaceAngle;
     private float _targetSurfaceAngle;
-
-    // --- Animation ---
-    private float _walkAnimTimer;
-    private bool _walkFrameB;
 
     // --- Blinking ---
     private bool _blink;
@@ -77,10 +57,6 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
     private Texture2D _blinkTexture;
     private Texture2D _idleTexture;
     private Texture2D _idleBlinkTexture;
-    private Texture2D _walkATexture;
-    private Texture2D _walkABlinkTexture;
-    private Texture2D _walkBTexture;
-    private Texture2D _walkBBlinkTexture;
 
     // --- Sticky ---
     private bool _stickied;
@@ -91,7 +67,7 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
     private Filter _originalFilter;
     private bool _filterApplied;
 
-    internal ObjectSpiderMineThrown(ObjectDataStartParams startParams) : base(startParams)
+    internal ObjectLeapMineThrown(ObjectDataStartParams startParams) : base(startParams)
     {
     }
 
@@ -108,10 +84,6 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
         _blinkTexture = Textures.GetTexture("SpiderMineMBlink");
         _idleTexture = Textures.GetTexture("SpiderMineMIdle");
         _idleBlinkTexture = Textures.GetTexture("SpiderMineMIdleBlink");
-        _walkATexture = Textures.GetTexture("SpiderMineMWalk1");
-        _walkABlinkTexture = Textures.GetTexture("SpiderMineMWalk1Blink");
-        _walkBTexture = Textures.GetTexture("SpiderMineMWalk2");
-        _walkBBlinkTexture = Textures.GetTexture("SpiderMineMWalk2Blink");
     }
 
     public override void OnRemoveObject() => GameWorld.PortalsObjectsToKeepTrackOf.Remove(this);
@@ -146,26 +118,22 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
             switch (status)
             {
                 case 1:
-                    _state = SpiderState.Arming;
+                    _state = LeapMineState.Arming;
                     _armTimer = ArmDuration;
                     _blink = false;
                     _blinkTimer = 0f;
                     break;
                 case 2:
-                    _state = SpiderState.Armed;
+                    _state = LeapMineState.Armed;
                     _blink = false;
                     break;
                 case 3:
-                    _state = SpiderState.Chasing;
+                    _state = LeapMineState.Leaping;
                     _blinkInterval = 60f;
-                    break;
-                case 4:
-                    _state = SpiderState.Detonating;
-                    _detonateTimer = DetonateDelay;
-                    _blinkInterval = 15f;
+                    _fuseTimer = FuseDuration;
                     break;
                 case -1:
-                    _state = SpiderState.Dud;
+                    _state = LeapMineState.Dud;
                     break;
             }
         }
@@ -175,34 +143,30 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
     {
         switch (_state)
         {
-            case SpiderState.Airborne:
+            case LeapMineState.Airborne:
                 break;
 
-            case SpiderState.Arming:
+            case LeapMineState.Arming:
                 UpdateArming(ms);
                 break;
 
-            case SpiderState.Armed:
+            case LeapMineState.Armed:
                 UpdateArmed(ms);
                 break;
 
-            case SpiderState.Chasing:
-                UpdateChasing(ms);
-                break;
-
-            case SpiderState.Detonating:
-                UpdateDetonating(ms);
+            case LeapMineState.Leaping:
+                UpdateLeaping(ms);
                 break;
         }
 
         // Sticky tracking (while attached to an object)
-        if (_stickied && _state is SpiderState.Arming or SpiderState.Armed)
+        if (_stickied && _state is LeapMineState.Arming or LeapMineState.Armed)
         {
             UpdateStickyTracking();
         }
 
-        // Smoothly interpolate surface angle while chasing/detonating
-        if (_state is SpiderState.Chasing or SpiderState.Detonating)
+        // Smoothly interpolate surface angle while leaping
+        if (_state is LeapMineState.Leaping)
         {
             float angleDiff = _targetSurfaceAngle - _surfaceAngle;
             while (angleDiff > (float)Math.PI) angleDiff -= (float)Math.PI * 2f;
@@ -211,7 +175,7 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
         }
 
         // Blinking visual/sound
-        if (_state is SpiderState.Arming or SpiderState.Detonating or SpiderState.Chasing)
+        if (_state is LeapMineState.Arming or LeapMineState.Leaping)
         {
             _blinkTimer -= ms;
             if (_blinkTimer <= 0f)
@@ -253,7 +217,6 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
             if (nearest is not null)
             {
                 _target = nearest;
-                _hasLeaped = false;
                 Unstick();
                 LeapAtTarget(GetWorldPosition(), nearest);
                 Properties.Get(ObjectPropertyID.Mine_Status).Value = 3;
@@ -263,89 +226,50 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
     }
 
     /// <summary>
-    /// Chasing: after the initial leap, runs along the ground toward the player,
-    /// jumping over obstacles. Explodes on proximity.
+    /// Leaping: the mine has launched toward a target.
+    /// Count down the 3-second fuse. Explodes on fuse expiry or player contact.
     /// </summary>
-    private void UpdateChasing(float ms)
+    private void UpdateLeaping(float ms)
     {
         if (GameOwner == GameOwnerEnum.Client) return;
-        if (Body is null) return;
 
-        Vector2 myPos = GetWorldPosition();
-
-        // If target is dead/gone, restick and wait for next player
-        if (_target is not { IsDead: false, IsRemoved: false })
+        // Proximity detonation — explode if close to the target player
+        if (_target is { IsDead: false, IsRemoved: false })
         {
-            Restick();
-            return;
-        }
-
-        // Proximity detonation
-        float dist = Vector2.Distance(myPos, _target.Position);
-        if (dist <= ProximityDetonateRange)
-        {
-            Destroy();
-            return;
-        }
-
-        // After initial leap has landed, run along ground
-        if (_hasLeaped)
-        {
-            float dirX = _target.Position.X > myPos.X ? 1f : -1f;
-            FaceDirection = (short)dirX;
-
-            // Check if on ground using a short downward raycast
-            _onGround = Probe(myPos, new Vector2(0, -1), GroundProbeRange);
-
-            // Get current velocity, override X for running, preserve Y for physics
-            Vector2 vel = Body.GetLinearVelocity();
-            vel.X = dirX * RunSpeed;
-
-            // Obstacle detection: raycast forward at body level
-            if (_onGround)
+            float dist = Vector2.Distance(GetWorldPosition(), _target.Position);
+            if (dist <= ProximityDetonateRange)
             {
-                // Probe forward at ground level — if wall detected, jump
-                bool wallAhead = Probe(myPos, new Vector2(dirX, 0), ObstacleProbeRange);
-
-                // Also probe forward-and-up — if that's clear, it's a jumpable obstacle
-                bool clearAbove = !Probe(myPos + new Vector2(0, ObstacleProbeHeight), new Vector2(dirX, 0), ObstacleProbeRange);
-
-                if (wallAhead && clearAbove)
-                {
-                    vel.Y = JumpSpeed;
-                    _onGround = false;
-                }
-
-                // Edge detection: if no ground ahead, small hop to maintain momentum
-                bool groundAhead = Probe(myPos + new Vector2(dirX * ObstacleProbeRange, 0), new Vector2(0, -1), GroundProbeRange + 2f);
-                if (!groundAhead)
-                {
-                    // Small hop to clear gap
-                    vel.Y = JumpSpeed * 0.6f;
-                    _onGround = false;
-                }
-            }
-
-            Body.SetLinearVelocity(vel);
-
-            // Keep surface angle level while running on ground
-            if (_onGround)
-            {
-                _targetSurfaceAngle = 0f;
+                Destroy();
+                return;
             }
         }
 
-        // Walk animation toggle
-        _walkAnimTimer -= ms;
-        if (_walkAnimTimer <= 0f)
+        _fuseTimer -= ms;
+        if (_fuseTimer <= 0f)
         {
-            _walkAnimTimer += WalkAnimInterval;
-            _walkFrameB = !_walkFrameB;
+            if (Globals.Random.NextFloat() < (float)Properties.Get(ObjectPropertyID.Mine_DudChance).Value)
+            {
+                EffectHandler.PlayEffect("GR_D", GetWorldPosition(), GameWorld);
+                SoundHandler.PlaySound("GrenadeDud", GameWorld);
+                Properties.Get(ObjectPropertyID.Mine_Status).Value = -1;
+                Body.SetType(BodyType.Dynamic);
+                if (_filterApplied)
+                {
+                    Body.GetFixtureByIndex(0).SetFilterData(ref _originalFilter);
+                    _filterApplied = false;
+                }
+            }
+            else
+            {
+                Destroy();
+            }
+
+            DisableUpdateObject();
         }
     }
 
     /// <summary>
-    /// Initial leap toward a target player with a sticky-bomb-like arc.
+    /// Leap toward a target player with an arc.
     /// </summary>
     private void LeapAtTarget(Vector2 myPos, Player target)
     {
@@ -358,64 +282,6 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
             launchAim.Normalize();
         }
         Body.SetLinearVelocity(launchAim * LeapSpeed);
-    }
-
-    /// <summary>
-    /// Short raycast to detect surfaces/obstacles.
-    /// </summary>
-    private bool Probe(Vector2 origin, Vector2 direction, float distance)
-    {
-        if (direction.LengthSquared() < 0.0001f) return false;
-
-        direction.Normalize();
-        GameWorld.RayCastResult result = GameWorld.RayCast(origin, direction, 0f, distance, SurfaceRayCastFilter, _ => true);
-        return result.EndFixture is not null;
-    }
-
-    private bool SurfaceRayCastFilter(Fixture fixture)
-    {
-        if (fixture.IsCloud()) return false;
-
-        ObjectData obj = Read(fixture);
-        if (obj is null || obj == this || obj.IsPlayer) return false;
-
-        fixture.GetFilterData(out Filter filter);
-        if ((filter.categoryBits & 15) <= 0) return false;
-
-        Material mat = obj.Tile.GetTileFixtureMaterial(fixture.TileFixtureIndex);
-        return !mat.Transparent;
-    }
-
-    /// <summary>
-    /// Restick at the current position and return to Armed/idle state.
-    /// </summary>
-    private void Restick()
-    {
-        _target = null;
-        _hasLeaped = false;
-        _onGround = false;
-
-        ChangeBodyType(BodyType.Static);
-        Body.SetLinearVelocity(Vector2.Zero);
-
-        _stickied = true;
-        _stickiedObject = null;
-
-        if (!_filterApplied)
-        {
-            ApplyStaticFilter();
-        }
-
-        _blink = false;
-        _blinkTimer = 0f;
-        _blinkInterval = 120f;
-        _scanTimer = ScanInterval;
-
-        if (GameOwner != GameOwnerEnum.Client)
-        {
-            Properties.Get(ObjectPropertyID.Mine_Status).Value = 2;
-            SoundHandler.PlaySound("MineArmed", GameWorld);
-        }
     }
 
     private Player FindNearestEnemy()
@@ -441,34 +307,6 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
         }
 
         return nearest;
-    }
-
-    private void UpdateDetonating(float ms)
-    {
-        if (GameOwner == GameOwnerEnum.Client) return;
-
-        _detonateTimer -= ms;
-        if (_detonateTimer <= 0f)
-        {
-            if (Globals.Random.NextFloat() < (float)Properties.Get(ObjectPropertyID.Mine_DudChance).Value)
-            {
-                EffectHandler.PlayEffect("GR_D", GetWorldPosition(), GameWorld);
-                SoundHandler.PlaySound("GrenadeDud", GameWorld);
-                Properties.Get(ObjectPropertyID.Mine_Status).Value = -1;
-                Body.SetType(BodyType.Dynamic);
-                if (_filterApplied)
-                {
-                    Body.GetFixtureByIndex(0).SetFilterData(ref _originalFilter);
-                    _filterApplied = false;
-                }
-            }
-            else
-            {
-                Destroy();
-            }
-
-            DisableUpdateObject();
-        }
     }
 
     private void Unstick()
@@ -550,8 +388,8 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
             EffectHandler.PlayEffect(Tile.ImpactEffect, GetWorldPosition(), GameWorld);
         }
 
-        // Explode on player contact while chasing or detonating
-        if (_state is SpiderState.Chasing or SpiderState.Detonating && otherObject is { IsPlayer: true })
+        // Explode on player contact while leaping
+        if (_state is LeapMineState.Leaping && otherObject is { IsPlayer: true })
         {
             if (GameOwner != GameOwnerEnum.Client)
             {
@@ -560,24 +398,8 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
             return;
         }
 
-        // During chase: after initial leap, landing on a surface marks us grounded
-        if (_state is SpiderState.Chasing && otherObject is { IsPlayer: false })
-        {
-            Vector2 normal = new(e.WorldNormal.X, e.WorldNormal.Y);
-            if (normal.LengthSquared() > 0.01f) normal.Normalize();
-
-            // If this is a floor (normal pointing up), we've landed
-            if (normal.Y > 0.5f)
-            {
-                _onGround = true;
-                _hasLeaped = true;
-                _surfaceNormal = normal;
-                _targetSurfaceAngle = 0f;
-            }
-        }
-
         // Stick to surfaces on first impact (only in airborne state)
-        if (_state == SpiderState.Airborne && !_stickied && otherObject is { RemovalInitiated: false, IsPlayer: false })
+        if (_state == LeapMineState.Airborne && !_stickied && otherObject is { RemovalInitiated: false, IsPlayer: false })
         {
             ChangeBodyType(BodyType.Static);
             _stickiedObject = otherObject;
@@ -591,7 +413,7 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
             _surfaceAngle = _normalAngle - (float)Math.PI / 2f;
             _targetSurfaceAngle = _surfaceAngle;
 
-            _state = SpiderState.Arming;
+            _state = LeapMineState.Arming;
             _armTimer = ArmDuration;
             _blink = false;
             _blinkTimer = 0f;
@@ -610,13 +432,7 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
         Camera.ConvertBox2DToScreen(ref vector, out vector);
 
         Texture2D texture;
-        if (_state is SpiderState.Chasing or SpiderState.Detonating)
-        {
-            texture = _walkFrameB
-                ? (_blink ? _walkBBlinkTexture : _walkBTexture)
-                : (_blink ? _walkABlinkTexture : _walkATexture);
-        }
-        else if (_state is SpiderState.Arming or SpiderState.Armed)
+        if (_state is LeapMineState.Arming or LeapMineState.Armed)
         {
             texture = _blink ? _idleBlinkTexture : _idleTexture;
         }
@@ -625,20 +441,21 @@ internal sealed class ObjectSpiderMineThrown : ObjectData
             texture = _blink ? _blinkTexture : _normalTexture;
         }
 
-        float drawAngle = _state is SpiderState.Airborne or SpiderState.Dud ? GetAngle() : -_surfaceAngle;
+        float drawAngle = _state is LeapMineState.Airborne or LeapMineState.Dud or LeapMineState.Leaping
+            ? GetAngle()
+            : -_surfaceAngle;
 
         spriteBatch.Draw(texture, vector, null, Color.Gray, drawAngle,
             new Vector2(texture.Width / 2, texture.Height / 2),
             Camera.ZoomUpscaled, m_faceDirectionSpriteEffect, 0f);
     }
 
-    private enum SpiderState
+    private enum LeapMineState
     {
         Airborne,
         Arming,
         Armed,
-        Chasing,
-        Detonating,
+        Leaping,
         Dud
     }
 }

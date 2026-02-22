@@ -3,13 +3,13 @@ using SFD;
 using SFD.Sounds;
 using SFD.Weapons;
 
-namespace SFR.Weapons.Handguns;
+namespace SFR.Weapons.Rifles;
 
 internal sealed class Blowpipe : RWeapon
 {
     internal Blowpipe()
     {
-        RWeaponProperties weaponProperties = new(114, "Blowpipe", "WpnBlowpipe", false, WeaponCategory.Secondary)
+        RWeaponProperties weaponProperties = new(114, "Blowpipe", "WpnBlowpipe", false, WeaponCategory.Primary)
         {
             MaxMagsInWeapon = 1,
             MaxRoundsInMag = 1,
@@ -38,20 +38,20 @@ internal sealed class Blowpipe : RWeapon
 
         RWeaponVisuals weaponVisuals = new()
         {
-            AnimIdleUpper = "UpperIdleHandgun",
-            AnimCrouchUpper = "UpperCrouchHandgun",
-            AnimJumpKickUpper = "UpperJumpKickHandgun",
-            AnimJumpUpper = "UpperJumpHandgun",
-            AnimJumpUpperFalling = "UpperJumpFallingHandgun",
-            AnimKickUpper = "UpperKickHandgun",
+            AnimIdleUpper = "UpperIdleRifle",
+            AnimCrouchUpper = "UpperCrouchRifle",
+            AnimJumpKickUpper = "UpperJumpKickRifle",
+            AnimJumpUpper = "UpperJumpRifle",
+            AnimJumpUpperFalling = "UpperJumpFallingRifle",
+            AnimKickUpper = "UpperKickRifle",
             AnimStaggerUpper = "UpperStaggerHandgun",
-            AnimRunUpper = "UpperRunHandgun",
-            AnimWalkUpper = "UpperWalkHandgun",
-            AnimUpperHipfire = "UpperHipfireHandgun",
+            AnimRunUpper = "UpperRunRifle",
+            AnimWalkUpper = "UpperWalkRifle",
+            AnimUpperHipfire = "UpperHipfireRifle",
             AnimFireArmLength = 7f,
-            AnimDraw = "UpperDrawHandgun",
-            AnimManualAim = "ManualAimHandgun",
-            AnimManualAimStart = "ManualAimHandgunStart",
+            AnimDraw = "UpperDrawRifle",
+            AnimManualAim = "ManualAimRifle",
+            AnimManualAimStart = "ManualAimRifleStart",
             AnimReloadUpper = "UpperReload",
             AnimFullLand = "FullLandHandgun",
             AnimToggleThrowingMode = "UpperToggleThrowing"
@@ -59,6 +59,7 @@ internal sealed class Blowpipe : RWeapon
 
         weaponVisuals.SetModelTexture("BlowpipeM");
         weaponVisuals.SetDrawnTexture("BlowpipeD");
+        weaponVisuals.SetSheathedTexture("BlowpipeThrowing");
         weaponVisuals.SetThrowingTexture("BlowpipeThrowing");
 
         SetPropertiesAndVisuals(weaponProperties, weaponVisuals);
@@ -77,7 +78,7 @@ internal sealed class Blowpipe : RWeapon
 
     public override void OnSubAnimationEvent(Player player, AnimationEvent animationEvent, AnimationData animationData, int currentFrameIndex)
     {
-        if (player.GameOwner != GameOwnerEnum.Server && animationEvent == AnimationEvent.EnterFrame && animationData.Name == "UpperDrawHandgun")
+        if (player.GameOwner != GameOwnerEnum.Server && animationEvent == AnimationEvent.EnterFrame && animationData.Name == "UpperDrawRifle")
         {
             switch (currentFrameIndex)
             {

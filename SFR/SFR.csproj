@@ -126,7 +126,8 @@
     <Compile Include="Objects\ObjectSnowballThrown.cs" />
     <Compile Include="Objects\ObjectStickyBombThrown.cs" />
     <Compile Include="Objects\ObjectStickyProjectile.cs" />
-    <Compile Include="Objects\ObjectSpiderMineThrown.cs" />
+    <Compile Include="Objects\ObjectLeapMineThrown.cs" />
+    <Compile Include="Objects\ObjectMimicMineThrown.cs" />
     <Compile Include="Projectiles\Database.cs" />
     <Compile Include="Projectiles\IExtendedProjectile.cs" />
     <Compile Include="Projectiles\ProjectileBarrett.cs" />
@@ -160,7 +161,7 @@
     <Compile Include="UI\MenuItemLabel.cs" />
     <Compile Include="Weapons\Database.cs" />
     <Compile Include="Weapons\Handguns\Anaconda.cs" />
-    <Compile Include="Weapons\Handguns\Blowpipe.cs" />
+    <Compile Include="Weapons\Rifles\Blowpipe.cs" />
     <Compile Include="Weapons\Handguns\Flintlock.cs" />
     <Compile Include="Weapons\Handguns\NailGun.cs" />
     <Compile Include="Weapons\Handguns\StickyLauncher.cs" />
@@ -206,7 +207,8 @@
     <Compile Include="Weapons\Thrown\Snowball.cs" />
     <Compile Include="Weapons\Thrown\StickyBomb.cs" />
     <Compile Include="Weapons\Thrown\ShowStopper.cs" />
-    <Compile Include="Weapons\Thrown\SpiderMine.cs" />
+    <Compile Include="Weapons\Thrown\LeapMine.cs" />
+    <Compile Include="Weapons\Thrown\MimicMine.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
