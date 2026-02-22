@@ -286,7 +286,7 @@ internal sealed class ObjectGasGrenadeThrown : ObjectGrenadeThrown
             if (_gasSoundTimer <= 0f)
             {
                 _gasSoundTimer = 1200f;
-                SoundHandler.PlaySound("Flamethrower", _gasPosition, 0.6f, GameWorld);
+                SoundHandler.PlaySound("GasHiss", _gasPosition, 0.6f, GameWorld);
             }
 
             // Update existing particles

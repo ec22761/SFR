@@ -51,6 +51,12 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
     private float _radiusCheckTimer;
     private const float RadiusCheckInterval = 250f; // Check every 250ms
 
+    // Sound timer for rising phase
+    private float _risingSoundTimer;
+
+    // Sound timer for active electric phase
+    private float _electricSoundTimer;
+
     // Electric field particles (idle aura)
     private readonly FieldParticle[] _fieldParticles = new FieldParticle[MaxFieldParticles];
     private int _fieldParticleIndex;
@@ -214,10 +220,12 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
         };
         Body.GetFixtureByIndex(0).SetFilterData(ref filter);
 
-        // Play a charging/rising sound
+        // Play mechanical rising / charge sound — layered for a rich sci-fi effect
         if (GameOwner != GameOwnerEnum.Server)
         {
-            SoundHandler.PlaySound("ElectroHit", GetWorldPosition(), 0.4f, GameWorld);
+            SoundHandler.PlaySound("HeavyCharge", GetWorldPosition(), GameWorld);
+            SoundHandler.PlaySound("LightCharge", GetWorldPosition(), GameWorld);
+            SoundHandler.PlaySound("MineTrigger", GetWorldPosition(), GameWorld);
         }
     }
 
@@ -258,7 +266,8 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
         // Visual and sound effects
         if (GameOwner != GameOwnerEnum.Server)
         {
-            SoundHandler.PlaySound("ElectroHit", position, GameWorld);
+            SoundHandler.PlaySound("ElectricZap", position, GameWorld);
+            SoundHandler.PlaySound("HeavyCharge", position, GameWorld);
 
             // Camera shake
             EffectHandler.PlayEffect("CAM_S", Vector2.Zero, GameWorld, 1.5f, 200f, false);
@@ -396,10 +405,12 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
                     }
                 }
 
-                // Play periodic zap sounds
-                if (_lightningTimer % 800f < ms)
+                // Play periodic zap sounds on a timer
+                _electricSoundTimer -= ms;
+                if (_electricSoundTimer <= 0f)
                 {
-                    SoundHandler.PlaySound("ElectroHit", center, 0.5f, GameWorld);
+                    _electricSoundTimer = 350f;
+                    SoundHandler.PlaySound("ElectricZap", center, GameWorld);
                 }
             }
 
@@ -420,6 +431,18 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
             _riseOffset += RiseSpeed * ms;
             _rotationAngle += RotationSpeed * ms;
 
+            // Play rising spark sounds
+            if (GameOwner != GameOwnerEnum.Server)
+            {
+                _risingSoundTimer -= ms;
+                if (_risingSoundTimer <= 0f)
+                {
+                    _risingSoundTimer = 80f;
+                    Vector2 pos = GetRaisedPosition();
+                    EffectHandler.PlayEffect("S_P", pos + new Vector2(Globals.Random.NextFloat(-4f, 4f), Globals.Random.NextFloat(-4f, 4f)), GameWorld);
+                }
+            }
+
             if (_riseOffset >= RiseTarget)
             {
                 _riseOffset = RiseTarget;
@@ -427,25 +450,6 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
                 ActivateElectricField();
             }
             return;
-        }
-
-        // Pre-detonation: electric field effect
-        if (GameOwner != GameOwnerEnum.Server)
-        {
-            _fieldEffectTimer -= ms;
-            if (_fieldEffectTimer <= 0f)
-            {
-                _fieldEffectTimer = FieldEffectInterval;
-                SpawnFieldParticle();
-            }
-
-            for (int i = 0; i < MaxFieldParticles; i++)
-            {
-                if (_fieldParticles[i].Active)
-                {
-                    _fieldParticles[i].Update(ms);
-                }
-            }
         }
 
         if (GameOwner != GameOwnerEnum.Client)
@@ -520,35 +524,6 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
         if (_glowTexture == null || _glowTexture.IsDisposed) return;
 
         Vector2 texOrigin = new(_glowTexture.Width * 0.5f, _glowTexture.Height * 0.5f);
-
-        // Draw electric field particles (pre-detonation aura)
-        if (!_detonated)
-        {
-            for (int i = 0; i < MaxFieldParticles; i++)
-            {
-                if (!_fieldParticles[i].Active) continue;
-
-                FieldParticle p = _fieldParticles[i];
-                Vector2 screenPos = p.Position;
-                Camera.ConvertWorldToScreen(ref screenPos, out screenPos);
-
-                float alpha = p.Alpha;
-                if (alpha <= 0f) continue;
-
-                // Electric cyan/blue glow
-                int a = Math.Min(255, (int)(alpha * 180));
-                if (a > 0)
-                {
-                    Color outerColor = new(80, 160, 255, a);
-                    spriteBatch.Draw(_glowTexture, screenPos, null, outerColor, 0f, texOrigin, p.Scale * Camera.Zoom, SpriteEffects.None, 0f);
-
-                    // Brighter white-blue core
-                    int a2 = Math.Min(255, (int)(alpha * 120));
-                    Color coreColor = new(200, 230, 255, a2);
-                    spriteBatch.Draw(_glowTexture, screenPos, null, coreColor, 0f, texOrigin, p.Scale * 0.4f * Camera.Zoom, SpriteEffects.None, 0f);
-                }
-            }
-        }
 
         // Draw lightning bolts (on detonation)
         if (_detonated)
