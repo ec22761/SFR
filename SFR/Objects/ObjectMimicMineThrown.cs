@@ -120,10 +120,16 @@ internal sealed class ObjectMimicMineThrown : ObjectData
                     _armTimer = ArmDuration;
                     _blink = false;
                     _blinkTimer = 0f;
+                    SwapDecal(_armingTexture);
                     break;
                 case 2:
                     _state = MimicState.Disguised;
                     _blink = false;
+                    SwapDecal(_disguiseTexture);
+                    // Enable interact prompt so players think it's a pickup
+                    Activateable = true;
+                    ActivateableHighlightning = true;
+                    ActivateRange = 14f;
                     break;
                 case 3:
                     _state = MimicState.Detonating;
@@ -135,6 +141,12 @@ internal sealed class ObjectMimicMineThrown : ObjectData
                     break;
             }
         }
+    }
+
+    private void SwapDecal(Texture2D texture)
+    {
+        ClearDecals();
+        AddDecal(new ObjectDecal(texture));
     }
 
     public override void UpdateObject(float ms)
@@ -197,11 +209,6 @@ internal sealed class ObjectMimicMineThrown : ObjectData
         if (_armTimer <= 0f)
         {
             Properties.Get(ObjectPropertyID.Mine_Status).Value = 2;
-
-            // Enable interact prompt so players think it's a pickup
-            Activateable = true;
-            ActivateableHighlightning = true;
-            ActivateRange = 14f;
         }
     }
 
@@ -264,7 +271,10 @@ internal sealed class ObjectMimicMineThrown : ObjectData
                 SFDMath.RotatePosition(ref gamePos, _stickiedObject.GetAngle() - _stickiedAngle, out gamePos);
                 gamePos += _stickiedObject.GetWorldPosition();
                 Vector2 newPos = new(Converter.WorldToBox2D(gamePos.X), Converter.WorldToBox2D(gamePos.Y));
-                Body.SetTransform(newPos, -_stickiedObject.GetAngle() + _stickiedAngle - _normalAngle);
+                float bodyAngle = _state == MimicState.Disguised
+                    ? 0f
+                    : -_stickiedObject.GetAngle() + _stickiedAngle - _normalAngle;
+                Body.SetTransform(newPos, bodyAngle);
                 SyncTransform();
             }
             else
@@ -295,7 +305,7 @@ internal sealed class ObjectMimicMineThrown : ObjectData
     {
         if (GameOwner != GameOwnerEnum.Client)
         {
-            _ = GameWorld.TriggerExplosion(GetWorldPosition(), 140f);
+            _ = GameWorld.TriggerExplosion(GetWorldPosition(), 160f);
             SoundHandler.PlaySound("Explosion", GetWorldPosition(), GameWorld);
             EffectHandler.PlayEffect("EXP", GetWorldPosition(), GameWorld);
             EffectHandler.PlayEffect("CAM_S", GetWorldPosition(), GameWorld, 8f, 250f, false);
@@ -331,34 +341,13 @@ internal sealed class ObjectMimicMineThrown : ObjectData
 
     public override void Draw(SpriteBatch spriteBatch, float ms)
     {
-        Texture2D texture;
-
-        switch (_state)
+        // During detonation, flash between disguise and arming texture
+        if (_state == MimicState.Detonating)
         {
-            case MimicState.Disguised:
-                // Show the supply crate disguise
-                texture = _disguiseTexture;
-                break;
-            case MimicState.Detonating:
-                // Flash between disguise and white during detonation
-                texture = _blink ? _armingTexture : _disguiseTexture;
-                break;
-            default:
-                // During airborne/arming, show the basic mine texture
-                texture = _blink ? _armingTexture : _armingTexture;
-                break;
+            SwapDecal(_blink ? _armingTexture : _disguiseTexture);
         }
 
-        Vector2 vector = Body.Position;
-        vector += GameWorld.DrawingBox2DSimulationTimestepOver * Body.GetLinearVelocity();
-        Camera.ConvertBox2DToScreen(ref vector, out vector);
-
-        // When disguised, draw upright like a real supply crate (angle = 0)
-        float drawAngle = _state == MimicState.Disguised ? 0f : GetAngle();
-
-        spriteBatch.Draw(texture, vector, null, Color.White, drawAngle,
-            new Vector2(texture.Width / 2, texture.Height / 2),
-            Camera.ZoomUpscaled, m_faceDirectionSpriteEffect, 0f);
+        DrawBase(spriteBatch, ms, Color.White);
     }
 
     private enum MimicState
