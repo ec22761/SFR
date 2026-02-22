@@ -281,11 +281,11 @@ internal sealed class ObjectGasGrenadeThrown : ObjectGrenadeThrown
                 EffectHandler.PlayEffect("TR_S", smokePos, GameWorld);
             }
 
-            // Gas release hiss sound
+            // Continuous gas hiss — replay the 2s clip every 1.8s so instances overlap seamlessly
             _gasSoundTimer -= ms;
             if (_gasSoundTimer <= 0f)
             {
-                _gasSoundTimer = 1200f;
+                _gasSoundTimer = 1800f;
                 SoundHandler.PlaySound("GasHiss", _gasPosition, 0.6f, GameWorld);
             }
 
