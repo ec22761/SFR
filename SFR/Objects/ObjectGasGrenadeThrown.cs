@@ -19,8 +19,8 @@ internal sealed class ObjectGasGrenadeThrown : ObjectGrenadeThrown
 {
     // Gas cloud parameters
     private const float GasDuration = 30000f; // 30 seconds in ms
-    private const float GasRadius = 36f; // Radius of gas cloud in world units
-    private const float DamagePerTick = 3.75f; // Damage per tick
+    private const float GasRadius = 40f; // Radius of gas cloud in world units
+    private const float DamagePerTick = 4.5f; // Damage per tick
     private const float DamageInterval = 500f; // Damage every 500ms
     private const float EffectInterval = 150f; // Spawn puff particles
     private const float SmokeEffectInterval = 400f; // Spawn built-in smoke effects
