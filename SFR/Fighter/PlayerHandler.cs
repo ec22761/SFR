@@ -317,6 +317,11 @@ internal static class PlayerHandler
             __instance.Walking = true;
         }
 
+        if (__instance is { CurrentWeaponDrawn: WeaponItemType.Rifle, CurrentRifleWeapon: HandCannon })
+        {
+            __instance.Walking = true;
+        }
+
         return !extendedPlayer.AdrenalineBoost || __instance.CurrentAction is not PlayerAction.MeleeAttack1 and not PlayerAction.MeleeAttack2 || __instance.Movement == PlayerMovement.Idle || value != PlayerMovement.Idle;
     }
 
@@ -382,7 +387,7 @@ internal static class PlayerHandler
     [HarmonyPatch(typeof(Player), nameof(Player.CanActivateSprint))]
     private static bool ActivateSprint(Player __instance, ref bool __result)
     {
-        if (__instance is { CurrentWeaponDrawn: WeaponItemType.Rifle, CurrentRifleWeapon: Barrett, StrengthBoostActive: false })
+        if (__instance is { CurrentWeaponDrawn: WeaponItemType.Rifle, CurrentRifleWeapon: Barrett or HandCannon, StrengthBoostActive: false })
         {
             __result = false;
             return false;

@@ -2,6 +2,7 @@
 using HarmonyLib;
 using SFD;
 using SFD.Objects;
+using SFD.Sounds;
 using SFR.Helper;
 using SFR.Misc;
 using SFR.Sync;
@@ -14,6 +15,7 @@ namespace SFR.Game;
 [HarmonyPatch]
 internal static class WorldHandler
 {
+    private static bool _funnymanTriggered;
     [HarmonyPostfix]
     [HarmonyPatch(typeof(ObjectDestructible), nameof(ObjectDestructible.OnDestroyObject))]
     private static void DestroyObject(ObjectDestructible __instance)
@@ -53,10 +55,41 @@ internal static class WorldHandler
     }
 
     /// <summary>
+    /// When only two players named "Holly" and "Luke" are left alive, change the music to Funnyman.
+    /// </summary>
+    [HarmonyPostfix]
+    [HarmonyPatch(typeof(GameWorld), nameof(GameWorld.Update))]
+    private static void CheckHollyAndLukeMusic(GameWorld __instance)
+    {
+        if (_funnymanTriggered || __instance.GameOwner == GameOwnerEnum.Client)
+        {
+            return;
+        }
+
+        var alivePlayers = __instance.Players
+            .Where(p => !p.IsDead && !p.IsRemoved)
+            .ToList();
+
+        if (alivePlayers.Count == 2)
+        {
+            var names = alivePlayers.Select(p => p.Name).OrderBy(n => n).ToList();
+            if (names.Count == 2 && names[0] == "Holly" && names[1] == "Luke")
+            {
+                MusicHandler.PlayTrack((MusicHandler.MusicTrackID)16, true, 1000f);
+                _funnymanTriggered = true;
+            }
+        }
+    }
+
+    /// <summary>
     /// This class will be called at the end of every round.
     /// Use it to dispose your collections or reset some data.
     /// </summary>
     [HarmonyPostfix]
     [HarmonyPatch(typeof(GameWorld), "DisposeAllObjects")]
-    private static void DisposeData() => SyncHandler.Attempts.Clear();
+    private static void DisposeData()
+    {
+        SyncHandler.Attempts.Clear();
+        _funnymanTriggered = false;
+    }
 }
