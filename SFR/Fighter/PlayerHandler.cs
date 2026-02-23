@@ -1,8 +1,11 @@
-﻿using HarmonyLib;
+﻿using Box2D.XNA;
+using HarmonyLib;
+using Microsoft.Xna.Framework;
 using SFD;
 using SFD.Weapons;
 using SFR.Fighter.Jetpacks;
 using SFR.Helper;
+using SFR.Misc;
 using SFR.Objects;
 using SFR.Weapons;
 using SFR.Weapons.Melee;
@@ -248,6 +251,31 @@ internal static class PlayerHandler
 
         ExtendedPlayer extendedPlayer = __instance.GetExtension();
         extendedPlayer.GenericJetpack?.Update(ms, extendedPlayer);
+
+        // Leap boost: apply extra upward velocity when player initiates a jump
+        if (extendedPlayer.LeapBoost)
+        {
+            bool isGrounded = __instance.StandingOnGround;
+            if (extendedPlayer.WasGrounded && !isGrounded)
+            {
+                Vector2 velocity = __instance.WorldBody.GetLinearVelocity();
+                if (velocity.Y > 0f)
+                {
+                    velocity.Y *= 1.75f;
+                    __instance.WorldBody.SetLinearVelocity(velocity);
+                    __instance.m_preBox2DLinearVelocity = velocity;
+                    __instance.AirControlBaseVelocity = velocity;
+                    __instance.ForceServerPositionState();
+                    __instance.ImportantUpdate = true;
+                }
+            }
+
+            extendedPlayer.WasGrounded = isGrounded;
+        }
+        else
+        {
+            extendedPlayer.WasGrounded = __instance.StandingOnGround;
+        }
     }
 
     [HarmonyPrefix]
@@ -402,5 +430,86 @@ internal static class PlayerHandler
                 extendedPlayer.DisableAdrenalineBoost();
             }
         }
+
+        if (extendedPlayer.LeapBoost)
+        {
+            extendedPlayer.Time.LeapBoost -= ms;
+            if (!extendedPlayer.LeapBoost || player.IsDead)
+            {
+                extendedPlayer.DisableLeapBoost();
+            }
+        }
+
+        if (extendedPlayer.Electrocuted)
+        {
+            extendedPlayer.Time.Electrocution -= ms;
+
+            // Keep input locked while electrocuted
+            if (player.InputMode != SFDGameScriptInterface.PlayerInputMode.ReadOnly && !player.IsDead)
+            {
+                player.SetInputMode(SFDGameScriptInterface.PlayerInputMode.ReadOnly);
+            }
+
+            // Force the death-kneel animation so the player looks like they're being zapped
+            if (!player.IsDead && !player.IsRemoved)
+            {
+                player.DeathKneeling = true;
+
+                // Play blue spark effects periodically
+                if (extendedPlayer.Time.Electrocution % 150f < ms)
+                {
+                    SFD.Effects.EffectHandler.PlayEffect("S_P", player.Position + new Vector2(
+                        Globals.Random.NextFloat(-4f, 4f),
+                        Globals.Random.NextFloat(0f, 12f)), player.GameWorld, 0.7f);
+                }
+            }
+
+            if (!extendedPlayer.Electrocuted || player.IsDead)
+            {
+                extendedPlayer.DisableElectrocution();
+            }
+        }
+
+        if (extendedPlayer.Poisoned)
+        {
+            extendedPlayer.Time.Poison -= ms;
+            extendedPlayer.Time.PoisonTickTimer -= ms;
+
+            if (extendedPlayer.Time.PoisonTickTimer <= 0f)
+            {
+                extendedPlayer.Time.PoisonTickTimer = ExtendedPlayer.TimeSequence.PoisonTickInterval;
+                if (!player.IsDead && !player.IsRemoved && player.GameOwner != GameOwnerEnum.Client)
+                {
+                    player.TakeMiscDamage(ExtendedPlayer.TimeSequence.PoisonDamagePerTick);
+                }
+            }
+
+            // Play green particle effects periodically on client
+            if (!player.IsDead && !player.IsRemoved && player.GameOwner != GameOwnerEnum.Server)
+            {
+                if (extendedPlayer.Time.Poison % 200f < ms)
+                {
+                    SFD.Effects.EffectHandler.PlayEffect("TR_S", player.Position + new Microsoft.Xna.Framework.Vector2(
+                        Globals.Random.NextFloat(-4f, 4f),
+                        Globals.Random.NextFloat(0f, 12f)), player.GameWorld);
+                }
+            }
+
+            if (!extendedPlayer.Poisoned || player.IsDead)
+            {
+                extendedPlayer.DisablePoison();
+            }
+        }
+    }
+
+    /// <summary>
+    ///     Prevent fall damage while Leap Boost is active.
+    /// </summary>
+    [HarmonyPrefix]
+    [HarmonyPatch(typeof(Player), "TakeFallDamage")]
+    private static bool TakeFallDamage(Player __instance)
+    {
+        ExtendedPlayer extendedPlayer = __instance.GetExtension();
+        return !extendedPlayer.LeapBoost;
     }
 }

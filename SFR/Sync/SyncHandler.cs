@@ -223,6 +223,43 @@ internal static class SyncHandler
                     extendedPlayer.GenericJetpack.Fuel.CurrentValue = jetPackFuel;
                 }
 
+                if (data.Args.Length > 4)
+                {
+                    bool leapBoost = (bool)data.Args[4];
+                    if (!extendedPlayer.LeapBoost && leapBoost)
+                    {
+                        extendedPlayer.LeapBoost = true;
+                    }
+                }
+
+                if (data.Args.Length > 5)
+                {
+                    bool electrocuted = (bool)data.Args[5];
+                    if (!extendedPlayer.Electrocuted && electrocuted)
+                    {
+                        extendedPlayer.Electrocuted = true;
+                        extendedPlayer.Time.Electrocution = ExtendedPlayer.TimeSequence.ElectrocutionTime;
+                    }
+                    else if (extendedPlayer.Electrocuted && !electrocuted)
+                    {
+                        extendedPlayer.Electrocuted = false;
+                    }
+                }
+
+                if (data.Args.Length > 6)
+                {
+                    bool poisoned = (bool)data.Args[6];
+                    if (!extendedPlayer.Poisoned && poisoned)
+                    {
+                        extendedPlayer.Poisoned = true;
+                        extendedPlayer.Time.Poison = ExtendedPlayer.TimeSequence.PoisonTime;
+                    }
+                    else if (extendedPlayer.Poisoned && !poisoned)
+                    {
+                        extendedPlayer.Poisoned = false;
+                    }
+                }
+
                 break;
         }
     }

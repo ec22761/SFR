@@ -23,7 +23,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[110];
+        WeaponDatabase.m_weapons = new WeaponItem[117];
 
         Weapons ??=
         [
@@ -52,6 +52,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Handgun, new UnkemptHarold()), // 85
             new WeaponItem(WeaponItemType.Handgun, new StickyLauncher()), // 86
             new WeaponItem(WeaponItemType.Handgun, new Anaconda()), // 109
+            new WeaponItem(WeaponItemType.Handgun, new Snaphook()), // 116
 
             // Throwable
             new WeaponItem(WeaponItemType.Thrown, new Claymore()), // 87
@@ -59,6 +60,10 @@ internal static class Database
             new WeaponItem(WeaponItemType.Thrown, new ImpactGrenade()), // 89
             new WeaponItem(WeaponItemType.Thrown, new Snowball()), // 90
             new WeaponItem(WeaponItemType.Thrown, new StickyBomb()), // 91
+            new WeaponItem(WeaponItemType.Thrown, new GasGrenade()), // 111
+            new WeaponItem(WeaponItemType.Thrown, new ShowStopper()), // 112
+            new WeaponItem(WeaponItemType.Thrown, new LeapMine()), // 113
+            new WeaponItem(WeaponItemType.Thrown, new MimicMine()), // 115
 
             // Rifle
             new WeaponItem(WeaponItemType.Rifle, new AA12()), // 93
@@ -72,10 +77,12 @@ internal static class Database
             new WeaponItem(WeaponItemType.Rifle, new Winchester()), // 101
             new WeaponItem(WeaponItemType.Rifle, new Minigun()), // 102
             new WeaponItem(WeaponItemType.Rifle, new AK47()), // 107
+            new WeaponItem(WeaponItemType.Rifle, new Blowpipe()), // 114
 
             // Pickup
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
             new WeaponItem(WeaponItemType.Powerup, new AdrenalineBoost()), // 103
+            new WeaponItem(WeaponItemType.Powerup, new LeapBoost()), // 110
             new WeaponItem(WeaponItemType.InstantPickup, new Jetpack()), // 104
             new WeaponItem(WeaponItemType.InstantPickup, new JetpackEditor()), // 105
             new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()) // 106
@@ -187,7 +194,7 @@ internal static class Database
             { 84, 18 }, // Switchblade
             // { 85, 4 }, // UnkemptHarold
             { 86, 9 }, // StickyLauncher
-            { 87, 15 }, // Claymore
+            // { 87, 15 }, // Claymore
             { 88, 16 }, // Frag grenade
             { 89, 12 }, // Impact grenade
             // { 90, 1 }, // Snowball
@@ -196,7 +203,7 @@ internal static class Database
             { 93, 12 }, // AA12
             { 94, 8 }, // Barrett
             { 95, 9 }, // Blunderbuss
-            { 96, 15 }, // Crossbow
+            { 96, 10 }, // Crossbow
             { 97, 8 }, // Double barrel
             { 98, 18 }, // Musket
             { 99, 7 }, // Quad launcher
@@ -204,12 +211,19 @@ internal static class Database
             { 101, 12 }, // Winchester
             { 102, 6 }, // Minigun
             { 103, 12 }, // Adrenaline boost
-            { 104, 17 }, // Jetpack
+            { 104, 14 }, // Jetpack
             // 105, Jetpack editor
-            { 106, 11 }, // Gunpack
-            { 107, 12 }, // AK47
-            { 108, 10 }, // Scythe
-            { 109, 12 } // Anaconda
+            { 106, 10 }, // Gunpack
+            { 107, 10 }, // AK47
+            { 108, 8 }, // Scythe
+            { 109, 10 }, // Anaconda
+            { 110, 12 }, // Leap boost
+            { 111, 14 }, // Gas grenade
+            { 112, 10 }, // Show Stopper
+            { 113, 10 }, // Leap Mine
+            { 114, 10 }, // Blowpipe
+            //{ 115, 8 } // Mimic Mine
+            { 116, 8 }, // Snaphook
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -323,8 +337,15 @@ internal static class Database
         AK47,
         Scythe,
         Anaconda,
+        LeapBoost,
         Jetpack,
         JetpackEditor,
-        Gunpack
+        Gunpack,
+        GasGrenade,
+        ShowStopper,
+        LeapMine,
+        Blowpipe,
+        MimicMine,
+        Snaphook
     }
 }

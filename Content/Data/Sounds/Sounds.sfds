@@ -5,3 +5,5 @@ MinigunSpin 0,5 Weapons\Gatling_spin
 MinigunDown 0,5 Weapons\Gatling_wind_down
 MinigunUp 0,5 Weapons\Gatling_wind_up
 GLFire 0,5 Weapons\GLFire
+ElectricZap 0,5 Weapons\ElectricZap
+GasHiss 0,5 Weapons\GasHiss

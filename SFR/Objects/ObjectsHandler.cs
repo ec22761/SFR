@@ -184,8 +184,20 @@ internal static class ObjectsHandler
             case "MONKEY00":
                 __result = new ObjectMonkey(startParams);
                 return false;
+            case "WPNGASGRENADESTHROWN":
+                __result = new ObjectGasGrenadeThrown(startParams);
+                return false;
+            case "WPNSHOWSTOPPERTHROWN":
+                __result = new ObjectShowStopperThrown(startParams);
+                return false;
             case "WPNCLAYMORETHROWN":
                 __result = new ObjectClaymoreThrown(startParams);
+                return false;
+            case "WPNSPIDERMINETHROWN":
+                __result = new ObjectLeapMineThrown(startParams);
+                return false;
+            case "WPNMIMICMINETHROWN":
+                __result = new ObjectMimicMineThrown(startParams);
                 return false;
             case "FROGGY00":
                 __result = new ObjectFroggy(startParams);

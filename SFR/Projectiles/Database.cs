@@ -14,7 +14,7 @@ internal static class Database
     [HarmonyPatch(typeof(ProjectileDatabase), nameof(ProjectileDatabase.Load))]
     private static void LoadProjectiles()
     {
-        Array.Resize(ref ProjectileDatabase.projectiles, 103);
+        Array.Resize(ref ProjectileDatabase.projectiles, 117);
 
         ProjectileDatabase.projectiles[69] = new ProjectileFlintlock();
         ProjectileDatabase.projectiles[70] = new ProjectileNailGun();
@@ -28,5 +28,6 @@ internal static class Database
         ProjectileDatabase.projectiles[100] = new ProjectileRCM();
         ProjectileDatabase.projectiles[101] = new ProjectileWinchester();
         ProjectileDatabase.projectiles[102] = new ProjectileMinigun();
+        ProjectileDatabase.projectiles[114] = new ProjectileBlowpipe();
     }
 }

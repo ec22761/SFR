@@ -195,6 +195,9 @@ internal static class AnimHandler
                 case AdrenalineBoost adrenalineBoost:
                     adrenalineBoost.OnEffectStart(player);
                     break;
+                case LeapBoost leapBoost:
+                    leapBoost.OnEffectStart(player);
+                    break;
             }
         }
 

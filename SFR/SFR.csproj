@@ -88,6 +88,7 @@
     <Compile Include="Fighter\ExtendedPlayer.cs" />
     <Compile Include="Fighter\GadgetHandler.cs" />
     <Compile Include="Fighter\GoreHandler.cs" />
+    <Compile Include="Fighter\InputHandler.cs" />
     <Compile Include="Fighter\DevHandler.cs" />
     <Compile Include="Fighter\Jetpacks\GenericJetpack.cs" />
     <Compile Include="Fighter\Jetpacks\Gunpack.cs" />
@@ -115,6 +116,8 @@
     <Compile Include="Objects\ObjectCrossbowBolt.cs" />
     <Compile Include="Objects\ObjectDoor.cs" />
     <Compile Include="Objects\ObjectFragGrenadeThrown.cs" />
+    <Compile Include="Objects\ObjectGasGrenadeThrown.cs" />
+    <Compile Include="Objects\ObjectShowStopperThrown.cs" />
     <Compile Include="Objects\ObjectHead.cs" />
     <Compile Include="Objects\ObjectImpactGrenadeThrown.cs" />
     <Compile Include="Objects\ObjectInvisibleBlockWeak.cs" />
@@ -123,6 +126,8 @@
     <Compile Include="Objects\ObjectSnowballThrown.cs" />
     <Compile Include="Objects\ObjectStickyBombThrown.cs" />
     <Compile Include="Objects\ObjectStickyProjectile.cs" />
+    <Compile Include="Objects\ObjectLeapMineThrown.cs" />
+    <Compile Include="Objects\ObjectMimicMineThrown.cs" />
     <Compile Include="Projectiles\Database.cs" />
     <Compile Include="Projectiles\IExtendedProjectile.cs" />
     <Compile Include="Projectiles\ProjectileBarrett.cs" />
@@ -137,6 +142,7 @@
     <Compile Include="Projectiles\ProjectileNailGun.cs" />
     <Compile Include="Projectiles\ProjectileRCM.cs" />
     <Compile Include="Projectiles\ProjectileWinchester.cs" />
+    <Compile Include="Projectiles\ProjectileBlowpipe.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>true</AutoGen>
       <DesignTime>true</DesignTime>
@@ -155,6 +161,8 @@
     <Compile Include="UI\MenuItemLabel.cs" />
     <Compile Include="Weapons\Database.cs" />
     <Compile Include="Weapons\Handguns\Anaconda.cs" />
+    <Compile Include="Weapons\Handguns\Snaphook.cs" />
+    <Compile Include="Weapons\Rifles\Blowpipe.cs" />
     <Compile Include="Weapons\Handguns\Flintlock.cs" />
     <Compile Include="Weapons\Handguns\NailGun.cs" />
     <Compile Include="Weapons\Handguns\StickyLauncher.cs" />
@@ -180,6 +188,7 @@
     <Compile Include="Weapons\Others\JetpackEditor.cs" />
     <Compile Include="Weapons\Others\HealthPouch.cs" />
     <Compile Include="Weapons\Others\Jetpack.cs" />
+    <Compile Include="Weapons\Others\LeapBoost.cs" />
     <Compile Include="Weapons\Others\AdrenalineBoost.cs" />
     <Compile Include="Weapons\Rifles\AA12.cs" />
     <Compile Include="Weapons\Rifles\AK47.cs" />
@@ -194,9 +203,13 @@
     <Compile Include="Weapons\Rifles\Winchester.cs" />
     <Compile Include="Weapons\Thrown\Claymore.cs" />
     <Compile Include="Weapons\Thrown\FragGrenade.cs" />
+    <Compile Include="Weapons\Thrown\GasGrenade.cs" />
     <Compile Include="Weapons\Thrown\ImpactGrenade.cs" />
     <Compile Include="Weapons\Thrown\Snowball.cs" />
     <Compile Include="Weapons\Thrown\StickyBomb.cs" />
+    <Compile Include="Weapons\Thrown\ShowStopper.cs" />
+    <Compile Include="Weapons\Thrown\LeapMine.cs" />
+    <Compile Include="Weapons\Thrown\MimicMine.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
