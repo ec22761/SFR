@@ -1,0 +1,87 @@
+using Microsoft.Xna.Framework;
+using SFD;
+using SFD.Effects;
+using SFD.Projectiles;
+using SFD.Tiles;
+using Player = SFD.Player;
+
+namespace SFR.Projectiles;
+
+internal sealed class ProjectileCannon : ProjectileBazooka
+{
+    private const float _explosionValue = 80;
+    private float _effectTimer;
+
+    internal ProjectileCannon()
+    {
+        Visuals = new ProjectileVisuals(Textures.GetTexture("CannonBall00"), Textures.GetTexture("CannonBall00"));
+        Properties = new ProjectileProperties(115, 350f, 0f, 20f, 20f, 0f, 0f, 25f, 0.5f)
+        {
+            DodgeChance = 0f,
+            CanBeAbsorbedOrBlocked = false,
+            PowerupTotalBounces = 3,
+            PowerupBounceRandomAngle = 0f,
+            PowerupFireType = ProjectilePowerupFireType.Fireplosion,
+            PowerupFireIgniteValue = 56f
+        };
+    }
+
+    private ProjectileCannon(ProjectileProperties projectileProperties, ProjectileVisuals projectileVisuals) : base(projectileProperties, projectileVisuals)
+    {
+    }
+
+    public override Projectile Copy()
+    {
+        Projectile projectile = new ProjectileCannon(Properties, Visuals);
+        projectile.CopyBaseValuesFrom(this);
+        return projectile;
+    }
+
+    public override void HitPlayer(Player player, ObjectData playerObjectData)
+    {
+        if (player.GameOwner != GameOwnerEnum.Client)
+        {
+            _ = GameWorld.TriggerExplosion(Position, _explosionValue, true);
+            HitFlag = true;
+            GameWorld.RemovedProjectiles.Add(this);
+        }
+    }
+
+    public override void Update(float ms)
+    {
+        if (GameWorld.GameOwner != GameOwnerEnum.Server)
+        {
+            _effectTimer -= ms;
+            if (_effectTimer < 0)
+            {
+                EffectHandler.PlayEffect("TR_S", Position, GameWorld, Direction.X, Direction.Y);
+                _effectTimer = Constants.EFFECT_LEVEL_FULL ? 10f : 20f;
+            }
+        }
+    }
+
+    public override void HitObject(ObjectData objectData, ProjectileHitEventArgs e)
+    {
+        if (!ProjectileGrenadeLauncher.SpecialIgnoreObjectsForExplosiveProjectiles(objectData))
+        {
+            if (GameOwner != GameOwnerEnum.Client && HitFlag)
+            {
+                if (e.ReflectionStatus != ProjectileReflectionStatus.WillBeReflected)
+                {
+                    _ = GameWorld.TriggerExplosion(Position - Direction * 2, _explosionValue, true);
+                }
+            }
+
+            if (GameOwner == GameOwnerEnum.Client)
+            {
+                base.HitObject(objectData, e);
+            }
+        }
+        else
+        {
+            e.CustomHandled = true;
+            e.ReflectionStatus = ProjectileReflectionStatus.None;
+            HitFlag = false;
+        }
+    }
+}

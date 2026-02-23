@@ -23,7 +23,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[117];
+        WeaponDatabase.m_weapons = new WeaponItem[118];
 
         Weapons ??=
         [
@@ -52,7 +52,6 @@ internal static class Database
             new WeaponItem(WeaponItemType.Handgun, new UnkemptHarold()), // 85
             new WeaponItem(WeaponItemType.Handgun, new StickyLauncher()), // 86
             new WeaponItem(WeaponItemType.Handgun, new Anaconda()), // 109
-            new WeaponItem(WeaponItemType.Handgun, new Snaphook()), // 116
 
             // Throwable
             new WeaponItem(WeaponItemType.Thrown, new Claymore()), // 87
@@ -83,6 +82,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
             new WeaponItem(WeaponItemType.Powerup, new AdrenalineBoost()), // 103
             new WeaponItem(WeaponItemType.Powerup, new LeapBoost()), // 110
+            new WeaponItem(WeaponItemType.Powerup, new CannonKit()), // 116
             new WeaponItem(WeaponItemType.InstantPickup, new Jetpack()), // 104
             new WeaponItem(WeaponItemType.InstantPickup, new JetpackEditor()), // 105
             new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()) // 106
@@ -189,7 +189,7 @@ internal static class Database
             { 79, 8 }, //ParryingDagger
             { 80, 8 }, // Poleaxe
             { 81, 15 }, // Rapier
-            { 82, 16 }, // RiotShield,
+            { 82, 12 }, // RiotShield,
             { 83, 16 }, // Sledgehammer
             { 84, 18 }, // Switchblade
             // { 85, 4 }, // UnkemptHarold
@@ -218,12 +218,12 @@ internal static class Database
             { 108, 8 }, // Scythe
             { 109, 10 }, // Anaconda
             { 110, 12 }, // Leap boost
-            { 111, 14 }, // Gas grenade
+            //{ 111, 14 }, // Gas grenade
             { 112, 10 }, // Show Stopper
             { 113, 10 }, // Leap Mine
             { 114, 10 }, // Blowpipe
-            //{ 115, 8 } // Mimic Mine
-            { 116, 8 }, // Snaphook
+            { 115, 8 } // Mimic Mine
+            // { 116, 8 }, // Cannon Kit
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -346,6 +346,6 @@ internal static class Database
         LeapMine,
         Blowpipe,
         MimicMine,
-        Snaphook
+        CannonKit
     }
 }
