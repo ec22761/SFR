@@ -190,7 +190,7 @@
     <Compile Include="Weapons\Others\Jetpack.cs" />
     <Compile Include="Weapons\Others\LeapBoost.cs" />
     <Compile Include="Weapons\Others\AdrenalineBoost.cs" />
-    <Compile Include="Weapons\Others\CannonKit.cs" />
+    <Compile Include="Weapons\Rifles\HandCannon.cs" />
     <Compile Include="Weapons\Rifles\AA12.cs" />
     <Compile Include="Weapons\Rifles\AK47.cs" />
     <Compile Include="Weapons\Rifles\Barrett.cs" />

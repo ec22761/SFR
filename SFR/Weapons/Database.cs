@@ -8,6 +8,7 @@ using SFR.Weapons.Melee;
 using SFR.Weapons.Others;
 using SFR.Weapons.Rifles;
 using SFR.Weapons.Thrown;
+using HandCannon = SFR.Weapons.Rifles.HandCannon;
 
 namespace SFR.Weapons;
 
@@ -23,7 +24,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[118];
+        WeaponDatabase.m_weapons = new WeaponItem[119];
 
         Weapons ??=
         [
@@ -77,12 +78,12 @@ internal static class Database
             new WeaponItem(WeaponItemType.Rifle, new Minigun()), // 102
             new WeaponItem(WeaponItemType.Rifle, new AK47()), // 107
             new WeaponItem(WeaponItemType.Rifle, new Blowpipe()), // 114
+            new WeaponItem(WeaponItemType.Rifle, new HandCannon()), // 116
 
             // Pickup
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
             new WeaponItem(WeaponItemType.Powerup, new AdrenalineBoost()), // 103
             new WeaponItem(WeaponItemType.Powerup, new LeapBoost()), // 110
-            new WeaponItem(WeaponItemType.Powerup, new CannonKit()), // 116
             new WeaponItem(WeaponItemType.InstantPickup, new Jetpack()), // 104
             new WeaponItem(WeaponItemType.InstantPickup, new JetpackEditor()), // 105
             new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()) // 106
@@ -221,9 +222,9 @@ internal static class Database
             //{ 111, 14 }, // Gas grenade
             { 112, 10 }, // Show Stopper
             { 113, 10 }, // Leap Mine
-            { 114, 10 }, // Blowpipe
-            { 115, 8 } // Mimic Mine
-            // { 116, 8 }, // Cannon Kit
+            //{ 114, 10 }, // Blowpipe
+            { 115, 8 }, // Mimic Mine
+            { 116, 6 } // Hand Cannon
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -346,6 +347,6 @@ internal static class Database
         LeapMine,
         Blowpipe,
         MimicMine,
-        CannonKit
+        HandCannon
     }
 }
