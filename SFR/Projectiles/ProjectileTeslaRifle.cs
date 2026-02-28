@@ -1,4 +1,3 @@
-using Box2D.XNA;
 using Microsoft.Xna.Framework;
 using SFD;
 using SFD.Projectiles;
@@ -8,8 +7,7 @@ namespace SFR.Projectiles;
 
 /// <summary>
 ///     Tesla Rifle projectile — near-instant raycast beam hit.
-///     Chains to the nearest secondary target within 60 world units for 40% damage.
-///     Stores last beam and chain endpoints for visual rendering in TeslaRifle.DrawExtra.
+///     Stores last beam endpoints for visual rendering in TeslaRifle.DrawExtra.
 /// </summary>
 internal sealed class ProjectileTeslaRifle : Projectile
 {
@@ -19,17 +17,6 @@ internal sealed class ProjectileTeslaRifle : Projectile
     internal static Vector2 LastBeamEndPosition;
 
     internal static float LastBeamTime;
-
-    /// <summary>
-    ///     Shared state for chain arc rendering — position of the secondary chain target.
-    /// </summary>
-    internal static Vector2 LastChainEndPosition;
-
-    internal static float LastChainTime;
-
-    private const float _chainRange = 60f;
-    private const float _chainDamageMultiplier = 0.4f;
-    private const float _baseDamage = 2f;
 
     internal ProjectileTeslaRifle()
     {
@@ -68,42 +55,6 @@ internal sealed class ProjectileTeslaRifle : Projectile
         // Track the beam endpoint for visuals.
         LastBeamEndPosition = player.Position;
         LastBeamTime = player.GameWorld.ElapsedTotalGameTime;
-
-        // Chain arc — find nearest secondary target and deal reduced damage.
-        if (player.GameOwner != GameOwnerEnum.Client)
-        {
-            Player closestTarget = null;
-            float closestDist = float.MaxValue;
-
-            AABB.Create(out AABB area, player.Position, player.Position, _chainRange);
-
-            foreach (ObjectData obj in player.GameWorld.GetObjectDataByArea(area, false,
-                         SFDGameScriptInterface.PhysicsLayer.Active))
-            {
-                if (obj.InternalData is Player candidate &&
-                    candidate != player &&
-                    !candidate.IsDead &&
-                    !candidate.IsRemoved)
-                {
-                    float dist = Vector2.Distance(candidate.Position, player.Position);
-                    if (dist < closestDist)
-                    {
-                        closestDist = dist;
-                        closestTarget = candidate;
-                    }
-                }
-            }
-
-            if (closestTarget is not null)
-            {
-                float chainDamage = _baseDamage * _chainDamageMultiplier;
-                closestTarget.TakeMiscDamage(chainDamage);
-
-                // Track the chain endpoint for visuals.
-                LastChainEndPosition = closestTarget.Position;
-                LastChainTime = player.GameWorld.ElapsedTotalGameTime;
-            }
-        }
     }
 
     public override void HitObject(ObjectData objectData, ProjectileHitEventArgs e)

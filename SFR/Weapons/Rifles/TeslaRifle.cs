@@ -3,8 +3,11 @@ using Box2D.XNA;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SFD;
+using SFD.Effects;
+using SFD.Materials;
 using SFD.Objects;
 using SFD.Sounds;
+using SFD.Tiles;
 using SFD.Weapons;
 using SFR.Helper;
 using SFR.Misc;
@@ -14,16 +17,14 @@ namespace SFR.Weapons.Rifles;
 /// <summary>
 ///     Tesla Rifle — continuous electric beam weapon.
 ///     Hold fire to charge a wind-up beam that gradually thickens, then fires
-///     a damaging raycast beam once fully charged. Chains to a nearby secondary
-///     target for 40% reduced damage. No visible bullets — the beam IS the weapon.
+///     a damaging raycast beam once fully charged. No visible bullets — the beam IS the weapon.
 /// </summary>
 internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 {
     // --- Gameplay constants ---
     private const float BeamRange = 999f; // effectively unlimited — clamped to screen edge
-    private const float ChainRange = 60f;
-    private const float ChainDamageMultiplier = 0.4f;
     private const float BeamDamage = 2f;
+    private const float BeamObjectDamage = 12f; // higher damage to objects so beam breaks lights, chains, barrels etc.
     private const float WindUpDuration = 800f; // ms to fully charge
     private const float WindUpDecay = 400f; // ms to lose charge when not firing
     private const float SoundCooldown = 180f;
@@ -36,10 +37,9 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private const float FiringBeamMidWidth = 2.5f;
     private const float FiringBeamCoreWidth = 1f;
 
-    private const int ChainSegmentCount = 6; // number of jagged segments in the chain zap
-    private const float ChainJitterInterval = 50f; // ms between chain zap re-jitters
     private const float SparkEffectInterval = 40f; // ms between spark draws at hit point
     private const int SparkCount = 3; // sparks per frame at hit point
+    private const float HitEffectInterval = 150f; // ms between material smoke/dust effects at hit point
 
     private static Texture2D _pixelTexture;
 
@@ -51,11 +51,8 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private Vector2 _beamStart; // world-space beam origin (muzzle)
     private Vector2 _beamEnd; // world-space beam end (hit or max range)
     private Vector2 _beamDir; // world-space beam direction (for stable rendering)
-    private Vector2 _chainEnd; // world-space chain arc endpoint
-    private bool _chainActive;
-    private Vector2[] _chainSegments; // jagged lightning segments for chain zap
-    private float _chainJitterTimer;
     private float _lastSparkEffectTime; // throttle spark effects at beam hit
+    private float _lastHitEffectTime; // throttle material hit effects (smoke/dust)
     private bool _beamHitSurface; // whether the beam hit a solid surface (not a player/empty)
 
     // Cached game-computed muzzle position for smooth DrawExtra visuals.
@@ -253,18 +250,6 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                         new Vector2(0.5f, 0.5f), sparkSize, SpriteEffects.None, 0f);
                 }
             }
-
-            // Chain zap — jagged lightning bolt to secondary target.
-            if (_chainActive && _chainSegments != null)
-            {
-                _chainJitterTimer -= ms;
-                if (_chainJitterTimer <= 0f)
-                {
-                    _chainJitterTimer = ChainJitterInterval;
-                    GenerateChainSegments(previewEnd, _chainEnd);
-                }
-                DrawLightningZap(spriteBatch, _chainSegments, 1f);
-            }
         }
         else if (_windUpProgress > 0f)
         {
@@ -371,7 +356,6 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 
         _beamStart = muzzleWorld;
         _beamDir = aimDir;
-        _chainActive = false;
         _beamHitSurface = false;
 
         if (args.Player.GameOwner != GameOwnerEnum.Client)
@@ -389,14 +373,22 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                     !hitPlayer.IsDead && !hitPlayer.IsRemoved)
                 {
                     hitPlayer.TakeMiscDamage(BeamDamage, sourceID: args.Player.ObjectID);
-                    TryChainArc(args.Player, hitPlayer);
                 }
                 else
                 {
                     _beamHitSurface = true;
                     if (hitObj.Destructable)
                     {
-                        hitObj.DealScriptDamage((int)BeamDamage);
+                        hitObj.DealScriptDamage((int)BeamObjectDamage, args.Player.ObjectID);
+                    }
+
+                    // Play material-based smoke/dust effects at hit point (like bullets do).
+                    if (now > _lastHitEffectTime + HitEffectInterval && hitObj.Tile?.Material != null)
+                    {
+                        Material mat = hitObj.Tile.Material;
+                        EffectHandler.PlayEffect(mat.Hit.Projectile.HitEffect, ray.EndPosition, args.Player.GameWorld);
+                        SoundHandler.PlaySound(mat.Hit.Projectile.HitSound, ray.EndPosition, args.Player.GameWorld);
+                        _lastHitEffectTime = now;
                     }
                 }
             }
@@ -493,43 +485,6 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     }
 
     /// <summary>
-    ///     Try to chain the beam to the nearest secondary target.
-    /// </summary>
-    private void TryChainArc(Player owner, Player primaryTarget)
-    {
-        Player closestTarget = null;
-        float closestDist = float.MaxValue;
-
-        AABB.Create(out AABB area, primaryTarget.Position, primaryTarget.Position, ChainRange);
-
-        foreach (ObjectData obj in owner.GameWorld.GetObjectDataByArea(area, false,
-                     SFDGameScriptInterface.PhysicsLayer.Active))
-        {
-            if (obj.InternalData is Player candidate &&
-                candidate != primaryTarget &&
-                candidate != owner &&
-                !candidate.IsDead &&
-                !candidate.IsRemoved)
-            {
-                float dist = Vector2.Distance(candidate.Position, primaryTarget.Position);
-                if (dist < closestDist)
-                {
-                    closestDist = dist;
-                    closestTarget = candidate;
-                }
-            }
-        }
-
-        if (closestTarget is not null)
-        {
-            float chainDamage = BeamDamage * ChainDamageMultiplier;
-            closestTarget.TakeMiscDamage(chainDamage, sourceID: owner.ObjectID);
-            _chainEnd = closestTarget.Position;
-            _chainActive = true;
-        }
-    }
-
-    /// <summary>
     ///     RayCast collision filter — same logic as the claymore laser: collide with
     ///     solid fixtures and players.
     /// </summary>
@@ -576,57 +531,6 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
         Vector2 pos = new(Converter.WorldToBox2D(worldPos.X), Converter.WorldToBox2D(worldPos.Y));
         Camera.ConvertBox2DToScreen(ref pos, out pos);
         return pos;
-    }
-
-    /// <summary>
-    ///     Generate jagged lightning segments between two world-space points for the chain zap.
-    /// </summary>
-    private void GenerateChainSegments(Vector2 start, Vector2 end)
-    {
-        _chainSegments ??= new Vector2[ChainSegmentCount + 1];
-        _chainSegments[0] = start;
-        _chainSegments[ChainSegmentCount] = end;
-
-        Vector2 dir = end - start;
-        Vector2 perp = new(-dir.Y, dir.X);
-        if (perp.LengthSquared() > 0) perp.Normalize();
-
-        for (int i = 1; i < ChainSegmentCount; i++)
-        {
-            float t = (float)i / ChainSegmentCount;
-            Vector2 midpoint = Vector2.Lerp(start, end, t);
-            float offset = Globals.Random.NextFloat(-5f, 5f) * (1f - Math.Abs(t - 0.5f) * 2f);
-            _chainSegments[i] = midpoint + perp * offset;
-        }
-    }
-
-    /// <summary>
-    ///     Draw a jagged lightning bolt from an array of world-space segments.
-    /// </summary>
-    private static void DrawLightningZap(SpriteBatch spriteBatch, Vector2[] segments, float alpha)
-    {
-        for (int i = 0; i < segments.Length - 1; i++)
-        {
-            Vector2 startScreen = WorldToScreen(segments[i]);
-            Vector2 endScreen = WorldToScreen(segments[i + 1]);
-
-            Vector2 diff = endScreen - startScreen;
-            float length = diff.Length();
-            if (length < 0.5f) continue;
-
-            float angle = (float)Math.Atan2(diff.Y, diff.X);
-            int a = Math.Min(255, (int)(alpha * 255));
-
-            // Outer glow (cyan)
-            Color outerColor = new(60, 180, 255, (int)(a * 0.5f));
-            spriteBatch.Draw(_pixelTexture, startScreen, null, outerColor, angle, Vector2.Zero,
-                new Vector2(length, 3f * Camera.ZoomUpscaled), SpriteEffects.None, 0f);
-
-            // Core (bright white-blue)
-            Color coreColor = new(220, 240, 255, a);
-            spriteBatch.Draw(_pixelTexture, startScreen, null, coreColor, angle, Vector2.Zero,
-                new Vector2(length, 1.5f * Camera.ZoomUpscaled), SpriteEffects.None, 0f);
-        }
     }
 
     private static void EnsurePixelTexture(SpriteBatch spriteBatch)

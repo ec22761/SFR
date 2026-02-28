@@ -230,7 +230,7 @@ internal static class Database
             { 115, 8 }, // Mimic Mine
             { 116, 6 }, // Hand Cannon
             { 117, 6 }, // Tesla Rifle
-            { 118, 4 } // Spectrum Analyzer
+            { 118, 6 } // Spectrum Analyzer
         };
 
         __result = WeaponItem.ID.m_wpns;
