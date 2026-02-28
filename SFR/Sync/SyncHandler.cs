@@ -260,6 +260,20 @@ internal static class SyncHandler
                     }
                 }
 
+                if (data.Args.Length > 7)
+                {
+                    bool spectral = (bool)data.Args[7];
+                    if (!extendedPlayer.Spectral && spectral)
+                    {
+                        extendedPlayer.Spectral = true;
+                        extendedPlayer.Time.Spectral = ExtendedPlayer.TimeSequence.SpectralTime;
+                    }
+                    else if (extendedPlayer.Spectral && !spectral)
+                    {
+                        extendedPlayer.Spectral = false;
+                    }
+                }
+
                 break;
         }
     }

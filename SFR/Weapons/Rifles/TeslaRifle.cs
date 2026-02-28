@@ -7,6 +7,7 @@ using SFD.Objects;
 using SFD.Sounds;
 using SFD.Weapons;
 using SFR.Helper;
+using SFR.Misc;
 
 namespace SFR.Weapons.Rifles;
 
@@ -19,7 +20,7 @@ namespace SFR.Weapons.Rifles;
 internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 {
     // --- Gameplay constants ---
-    private const float BeamRange = 250f;
+    private const float BeamRange = 999f; // effectively unlimited — clamped to screen edge
     private const float ChainRange = 60f;
     private const float ChainDamageMultiplier = 0.4f;
     private const float BeamDamage = 2f;
@@ -35,6 +36,11 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private const float FiringBeamMidWidth = 2.5f;
     private const float FiringBeamCoreWidth = 1f;
 
+    private const int ChainSegmentCount = 6; // number of jagged segments in the chain zap
+    private const float ChainJitterInterval = 50f; // ms between chain zap re-jitters
+    private const float SparkEffectInterval = 40f; // ms between spark draws at hit point
+    private const int SparkCount = 3; // sparks per frame at hit point
+
     private static Texture2D _pixelTexture;
 
     // --- Per-instance state ---
@@ -47,6 +53,10 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private Vector2 _beamDir; // world-space beam direction (for stable rendering)
     private Vector2 _chainEnd; // world-space chain arc endpoint
     private bool _chainActive;
+    private Vector2[] _chainSegments; // jagged lightning segments for chain zap
+    private float _chainJitterTimer;
+    private float _lastSparkEffectTime; // throttle spark effects at beam hit
+    private bool _beamHitSurface; // whether the beam hit a solid surface (not a player/empty)
 
     // Cached game-computed muzzle position for smooth DrawExtra visuals.
     // Updated every BeforeCreateProjectile call (~50ms). In DrawExtra we
@@ -203,13 +213,14 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
         // Compute current aim-aligned beam for the wind-up preview.
         GetAimBeamPositions(player, out Vector2 muzzleWorld, out Vector2 aimDir);
         float edgeDist = Camera.GetDistanceToEdge(muzzleWorld, aimDir);
-        float range = edgeDist > 0 ? Math.Min(edgeDist + 16f, BeamRange) : BeamRange;
+        float range = edgeDist > 0 ? edgeDist + 16f : BeamRange;
 
         // Use GameWorld.RayCast to find the visual endpoint (same as laser sight).
         GameWorld.RayCastResult ray = player.GameWorld.RayCast(
             muzzleWorld, aimDir, 0f, range, LazerRayCastCollision, _ => true);
 
-        Vector2 previewEnd = ray.EndFixture is not null
+        bool hitSomething = ray.EndFixture is not null;
+        Vector2 previewEnd = hitSomething
             ? ray.EndPosition
             : muzzleWorld + aimDir * range;
 
@@ -226,14 +237,33 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
             // Almost-white core.
             DrawBeamLine(spriteBatch, muzzleWorld, previewEnd, aimDir, new Color(220, 240, 255, 240), FiringBeamCoreWidth);
 
-            // Chain arc.
-            if (_chainActive)
+            // Blue spark particles at beam hit point — tiny custom-drawn dots.
+            if (hitSomething && now > _lastSparkEffectTime + SparkEffectInterval)
             {
-                Vector2 chainDir = _chainEnd - _beamEnd;
-                if (chainDir.LengthSquared() > 0) chainDir.Normalize();
-                player.GameWorld.DrawLazer(spriteBatch, true, _beamEnd, _chainEnd, chainDir);
-                DrawBeamLine(spriteBatch, _beamEnd, _chainEnd, chainDir, new Color(80, 180, 255, 60), 2f);
-                DrawBeamLine(spriteBatch, _beamEnd, _chainEnd, chainDir, new Color(220, 240, 255, 200), 0.8f);
+                _lastSparkEffectTime = now;
+                for (int i = 0; i < SparkCount; i++)
+                {
+                    Vector2 sparkWorld = previewEnd + new Vector2(
+                        Globals.Random.NextFloat(-2f, 2f), Globals.Random.NextFloat(-2f, 2f));
+                    Vector2 sparkScreen = WorldToScreen(sparkWorld);
+                    float sparkSize = Globals.Random.NextFloat(0.5f, 1.5f) * Camera.ZoomUpscaled;
+                    int sparkAlpha = Globals.Random.Next(150, 255);
+                    Color sparkColor = new(160, 220, 255, sparkAlpha);
+                    spriteBatch.Draw(_pixelTexture, sparkScreen, null, sparkColor, 0f,
+                        new Vector2(0.5f, 0.5f), sparkSize, SpriteEffects.None, 0f);
+                }
+            }
+
+            // Chain zap — jagged lightning bolt to secondary target.
+            if (_chainActive && _chainSegments != null)
+            {
+                _chainJitterTimer -= ms;
+                if (_chainJitterTimer <= 0f)
+                {
+                    _chainJitterTimer = ChainJitterInterval;
+                    GenerateChainSegments(previewEnd, _chainEnd);
+                }
+                DrawLightningZap(spriteBatch, _chainSegments, 1f);
             }
         }
         else if (_windUpProgress > 0f)
@@ -337,11 +367,12 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
         Vector2 muzzleWorld = args.WorldPosition + aimDir * BeamForwardOffset;
 
         float edgeDist = Camera.GetDistanceToEdge(muzzleWorld, aimDir);
-        float range = edgeDist > 0 ? Math.Min(edgeDist + 16f, BeamRange) : BeamRange;
+        float range = edgeDist > 0 ? edgeDist + 16f : BeamRange;
 
         _beamStart = muzzleWorld;
         _beamDir = aimDir;
         _chainActive = false;
+        _beamHitSurface = false;
 
         if (args.Player.GameOwner != GameOwnerEnum.Client)
         {
@@ -360,9 +391,13 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                     hitPlayer.TakeMiscDamage(BeamDamage, sourceID: args.Player.ObjectID);
                     TryChainArc(args.Player, hitPlayer);
                 }
-                else if (hitObj.Destructable)
+                else
                 {
-                    hitObj.DealScriptDamage((int)BeamDamage);
+                    _beamHitSurface = true;
+                    if (hitObj.Destructable)
+                    {
+                        hitObj.DealScriptDamage((int)BeamDamage);
+                    }
                 }
             }
             else
@@ -376,6 +411,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
             GameWorld.RayCastResult ray = args.Player.GameWorld.RayCast(
                 muzzleWorld, aimDir, 0f, range, LazerRayCastCollision, _ => true);
             _beamEnd = ray.EndFixture is not null ? ray.EndPosition : muzzleWorld + aimDir * range;
+            _beamHitSurface = ray.EndFixture is not null;
         }
 
         _lastDamageBeamTime = now;
@@ -540,6 +576,57 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
         Vector2 pos = new(Converter.WorldToBox2D(worldPos.X), Converter.WorldToBox2D(worldPos.Y));
         Camera.ConvertBox2DToScreen(ref pos, out pos);
         return pos;
+    }
+
+    /// <summary>
+    ///     Generate jagged lightning segments between two world-space points for the chain zap.
+    /// </summary>
+    private void GenerateChainSegments(Vector2 start, Vector2 end)
+    {
+        _chainSegments ??= new Vector2[ChainSegmentCount + 1];
+        _chainSegments[0] = start;
+        _chainSegments[ChainSegmentCount] = end;
+
+        Vector2 dir = end - start;
+        Vector2 perp = new(-dir.Y, dir.X);
+        if (perp.LengthSquared() > 0) perp.Normalize();
+
+        for (int i = 1; i < ChainSegmentCount; i++)
+        {
+            float t = (float)i / ChainSegmentCount;
+            Vector2 midpoint = Vector2.Lerp(start, end, t);
+            float offset = Globals.Random.NextFloat(-5f, 5f) * (1f - Math.Abs(t - 0.5f) * 2f);
+            _chainSegments[i] = midpoint + perp * offset;
+        }
+    }
+
+    /// <summary>
+    ///     Draw a jagged lightning bolt from an array of world-space segments.
+    /// </summary>
+    private static void DrawLightningZap(SpriteBatch spriteBatch, Vector2[] segments, float alpha)
+    {
+        for (int i = 0; i < segments.Length - 1; i++)
+        {
+            Vector2 startScreen = WorldToScreen(segments[i]);
+            Vector2 endScreen = WorldToScreen(segments[i + 1]);
+
+            Vector2 diff = endScreen - startScreen;
+            float length = diff.Length();
+            if (length < 0.5f) continue;
+
+            float angle = (float)Math.Atan2(diff.Y, diff.X);
+            int a = Math.Min(255, (int)(alpha * 255));
+
+            // Outer glow (cyan)
+            Color outerColor = new(60, 180, 255, (int)(a * 0.5f));
+            spriteBatch.Draw(_pixelTexture, startScreen, null, outerColor, angle, Vector2.Zero,
+                new Vector2(length, 3f * Camera.ZoomUpscaled), SpriteEffects.None, 0f);
+
+            // Core (bright white-blue)
+            Color coreColor = new(220, 240, 255, a);
+            spriteBatch.Draw(_pixelTexture, startScreen, null, coreColor, angle, Vector2.Zero,
+                new Vector2(length, 1.5f * Camera.ZoomUpscaled), SpriteEffects.None, 0f);
+        }
     }
 
     private static void EnsurePixelTexture(SpriteBatch spriteBatch)

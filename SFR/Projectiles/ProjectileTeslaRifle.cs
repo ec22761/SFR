@@ -38,7 +38,7 @@ internal sealed class ProjectileTeslaRifle : Projectile
             Textures.GetTexture("BulletTeslaRifleSlowmo")
         );
 
-        Properties = new ProjectileProperties(116, 250f, 5000f, 2f, 1.5f, 0f, 0f, 0f, 0f)
+        Properties = new ProjectileProperties(116, 999f, 5000f, 2f, 1.5f, 0f, 0f, 0f, 0f)
         {
             PowerupBounceRandomAngle = 0f,
             PowerupFireType = ProjectilePowerupFireType.Default,

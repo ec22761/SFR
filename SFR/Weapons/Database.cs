@@ -24,7 +24,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[119];
+        WeaponDatabase.m_weapons = new WeaponItem[120];
 
         Weapons ??=
         [
@@ -87,7 +87,10 @@ internal static class Database
             new WeaponItem(WeaponItemType.Powerup, new LeapBoost()), // 110
             new WeaponItem(WeaponItemType.InstantPickup, new Jetpack()), // 104
             new WeaponItem(WeaponItemType.InstantPickup, new JetpackEditor()), // 105
-            new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()) // 106
+            new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()), // 106
+
+            // Consumable
+            new WeaponItem(WeaponItemType.Powerup, new SpectrumAnalyzer()) // 118
         ];
 
         foreach (WeaponItem weapon in Weapons)
@@ -189,7 +192,7 @@ internal static class Database
             { 77, 6 }, // GreatSword
             { 78, 10 }, // Morningstar
             { 79, 8 }, //ParryingDagger
-            { 80, 8 }, // Poleaxe
+            { 80, 6 }, // Poleaxe
             { 81, 15 }, // Rapier
             { 82, 12 }, // RiotShield,
             { 83, 16 }, // Sledgehammer
@@ -226,7 +229,8 @@ internal static class Database
             //{ 114, 10 }, // Blowpipe
             { 115, 8 }, // Mimic Mine
             { 116, 6 }, // Hand Cannon
-            { 117, 6 } // Tesla Rifle
+            { 117, 6 }, // Tesla Rifle
+            { 118, 4 } // Spectrum Analyzer
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -350,6 +354,7 @@ internal static class Database
         Blowpipe,
         MimicMine,
         HandCannon,
-        TeslaRifle
+        TeslaRifle,
+        SpectrumAnalyzer
     }
 }

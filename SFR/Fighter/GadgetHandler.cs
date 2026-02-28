@@ -39,6 +39,12 @@ internal static class GadgetHandler
     [HarmonyPatch(typeof(Player), nameof(Player.DrawPlates))]
     private static bool DrawExtraInfo(float ms, Player __instance)
     {
+        ExtendedPlayer ext = __instance.GetExtension();
+        if (ext.Spectral)
+        {
+            return false;
+        }
+
         Vector2 vector = Camera.ConvertWorldToScreen(__instance.Position + new Vector2(0f, 24f));
         float num = MathHelper.Max(Camera.Zoom * 0.4f, 1f);
 
@@ -83,6 +89,12 @@ internal static class GadgetHandler
         if (extendedPlayer.LeapBoost)
         {
             __result = ColorCorrection.CreateCustom(Globals.LeapBoost);
+            return false;
+        }
+
+        if (extendedPlayer.Spectral)
+        {
+            __result = Color.White * 0.1f;
             return false;
         }
 

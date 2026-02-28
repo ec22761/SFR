@@ -46,6 +46,12 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         set => Time.Poison = value ? TimeSequence.PoisonTime : 0f;
     }
 
+    internal bool Spectral
+    {
+        get => Time.Spectral > 0f;
+        set => Time.Spectral = value ? TimeSequence.SpectralTime : 0f;
+    }
+
     /// <summary>
     ///     Tracks whether the player was on the ground last frame,
     ///     so we can detect jump transitions for the leap boost.
@@ -68,7 +74,7 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
 
     internal object[] GetStates()
     {
-        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost, Electrocuted, Poisoned];
+        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost, Electrocuted, Poisoned, Spectral];
         return states;
     }
 
@@ -110,6 +116,19 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
     }
 
+    internal void ApplySpectral()
+    {
+        Spectral = true;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+    }
+
+    internal void DisableSpectral()
+    {
+        Spectral = false;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+        SoundHandler.PlaySound("StrengthBoostStop", Player.Position, Player.GameWorld);
+    }
+
     internal class TimeSequence
     {
         internal const float AdrenalineBoostTime = 20000f;
@@ -118,11 +137,13 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         internal const float PoisonTime = 5000f;
         internal const float PoisonDamagePerTick = 2f;
         internal const float PoisonTickInterval = 500f;
+        internal const float SpectralTime = 30000f;
         internal float AdrenalineBoost;
         internal float LeapBoost;
         internal float Electrocution;
         internal float Poison;
         internal float PoisonTickTimer;
+        internal float Spectral;
     }
 
     public bool Equals(ExtendedPlayer other) => other?.Player.ObjectID == Player.ObjectID;

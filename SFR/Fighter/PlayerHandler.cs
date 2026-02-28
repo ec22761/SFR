@@ -505,6 +505,15 @@ internal static class PlayerHandler
                 extendedPlayer.DisablePoison();
             }
         }
+
+        if (extendedPlayer.Spectral)
+        {
+            extendedPlayer.Time.Spectral -= ms;
+            if (!extendedPlayer.Spectral || player.IsDead)
+            {
+                extendedPlayer.DisableSpectral();
+            }
+        }
     }
 
     /// <summary>

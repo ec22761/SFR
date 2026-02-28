@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using HarmonyLib;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SFD;
 using SFD.Objects;
+using SFD.Tiles;
 using SFD.Weapons;
 using SFR.Objects.Animal;
 using SFR.Weapons;
@@ -223,9 +225,35 @@ internal static class ObjectsHandler
             case "WOODDOOR00":
                 DrawAnimatedObject(spriteBatch, __instance, drawColor);
                 return false;
+            case "ITEMSPECTRUMANALYZER":
+                DrawSpectrumAnalyzer(spriteBatch, __instance, drawColor);
+                return false;
         }
 
         return true;
+    }
+
+    private static Texture2D[] _spectrumTextures;
+
+    private static void DrawSpectrumAnalyzer(SpriteBatch spriteBatch, ObjectData objectData, Color drawColor)
+    {
+        _spectrumTextures ??=
+        [
+            Textures.GetTexture("SpectrumAnalyzer"),
+            Textures.GetTexture("SpectrumAnalyzerB"),
+            Textures.GetTexture("SpectrumAnalyzerC")
+        ];
+
+        int frame = (int)(Environment.TickCount / 500) % 3;
+        Texture2D texture = _spectrumTextures[frame];
+
+        Vector2 position = objectData.Body.GetPosition();
+        position += objectData.GameWorld.DrawingBox2DSimulationTimestepOver * objectData.Body.GetLinearVelocity();
+        Camera.ConvertBox2DToScreen(ref position, out position);
+
+        spriteBatch.Draw(texture, position, null, drawColor, objectData.Body.GetAngle(),
+            new Vector2(texture.Width / 2, texture.Height / 2), Camera.ZoomUpscaled,
+            objectData.m_faceDirectionSpriteEffect, 0f);
     }
 
     private static void DrawAnimatedObject(SpriteBatch spriteBatch, ObjectData objectData, Color drawColor)
