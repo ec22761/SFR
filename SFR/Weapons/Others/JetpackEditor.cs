@@ -17,7 +17,7 @@ internal sealed class JetpackEditor : HItem
         HItemProperties itemProperties = new(105, "Jetpack_Editor", "ItemJetpackEditor", false, WeaponCategory.Supply)
         {
             GrabSoundID = "GetHealthSmall",
-            VisualText = "Jetpack Editor"
+            VisualText = "Jetpack"
         };
 
         HItemVisuals visuals = new(Textures.GetTexture("Pills"));

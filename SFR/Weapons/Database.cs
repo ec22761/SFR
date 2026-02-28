@@ -217,8 +217,8 @@ internal static class Database
             { 101, 12 }, // Winchester
             { 102, 6 }, // Minigun
             { 103, 12 }, // Adrenaline boost
-            { 104, 14 }, // Jetpack
-            // 105, Jetpack editor
+            // { 104, 14 }, // Jetpack
+            {105, 14 }, // Jetpack editor
             { 106, 10 }, // Gunpack
             { 107, 10 }, // AK47
             { 108, 8 }, // Scythe

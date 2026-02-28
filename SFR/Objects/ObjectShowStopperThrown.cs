@@ -277,13 +277,14 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
             // Camera shake
             EffectHandler.PlayEffect("CAM_S", Vector2.Zero, GameWorld, 1.5f, 200f, false);
 
-            // Spark effects
-            for (int i = 0; i < 8; i++)
+            // Blue spark effects at detonation — custom-drawn in Draw() via the bolts.
+            // We keep a few engine sparks for the initial pop but avoid the yellow S_P.
+            for (int i = 0; i < 4; i++)
             {
                 Vector2 sparkPos = position + new Vector2(
                     Globals.Random.NextFloat(-10f, 10f),
                     Globals.Random.NextFloat(-10f, 10f));
-                EffectHandler.PlayEffect("S_P", sparkPos, GameWorld);
+                EffectHandler.PlayEffect("TR_S", sparkPos, GameWorld);
             }
 
             // Generate lightning bolts from the raised position
@@ -524,7 +525,7 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
                 {
                     _risingSoundTimer = 80f;
                     Vector2 pos = GetRaisedPosition();
-                    EffectHandler.PlayEffect("S_P", pos + new Vector2(Globals.Random.NextFloat(-4f, 4f), Globals.Random.NextFloat(-4f, 4f)), GameWorld);
+                    EffectHandler.PlayEffect("TR_S", pos + new Vector2(Globals.Random.NextFloat(-4f, 4f), Globals.Random.NextFloat(-4f, 4f)), GameWorld);
                 }
             }
 
@@ -590,7 +591,7 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
                 Vector2 sparkPos = pos + new Vector2(
                     Globals.Random.NextFloat(-8f, 8f),
                     Globals.Random.NextFloat(-8f, 8f));
-                EffectHandler.PlayEffect("S_P", sparkPos, GameWorld);
+                EffectHandler.PlayEffect("TR_S", sparkPos, GameWorld);
             }
         }
     }
@@ -647,6 +648,21 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
     {
         if (bolt.Segments == null) return;
 
+        float segAlpha = globalAlpha * bolt.Alpha;
+        int a = Math.Min(255, (int)(segAlpha * 255));
+        if (a <= 0) return;
+
+        // Precompute colors
+        Color outerColor = new(60, 180, 255, (int)(a * 0.5f));
+        Color coreColor = new(220, 240, 255, a);
+        Color vertexGlowColor = new(100, 200, 255, (int)(a * 0.35f));
+
+        Vector2 lineOrigin = new(0f, 0.5f); // Center vertically so segments join cleanly
+        float outerWidth = 3f * Camera.Zoom;
+        float coreWidth = 1.5f * Camera.Zoom;
+        float glowDotScale = 0.18f * Camera.Zoom; // Small glow dot at each joint
+        Vector2 glowOrigin = new(_glowTexture.Width * 0.5f, _glowTexture.Height * 0.5f);
+
         for (int i = 0; i < bolt.Segments.Length - 1; i++)
         {
             Vector2 startWorld = bolt.Segments[i];
@@ -661,19 +677,44 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
 
             float angle = (float)Math.Atan2(diff.Y, diff.X);
 
-            float segAlpha = globalAlpha * bolt.Alpha;
-            int a = Math.Min(255, (int)(segAlpha * 255));
-            if (a <= 0) continue;
+            // Outer glow (cyan) — centered on the line axis
+            spriteBatch.Draw(Constants.WhitePixel, startScreen, null, outerColor, angle, lineOrigin,
+                new Vector2(length, outerWidth), SpriteEffects.None, 0f);
 
-            // Outer glow (cyan)
-            Color outerColor = new(60, 180, 255, (int)(a * 0.5f));
-            spriteBatch.Draw(Constants.WhitePixel, startScreen, null, outerColor, angle, Vector2.Zero,
-                new Vector2(length, 3f * Camera.Zoom), SpriteEffects.None, 0f);
+            // Core (bright white-blue) — centered on the line axis
+            spriteBatch.Draw(Constants.WhitePixel, startScreen, null, coreColor, angle, lineOrigin,
+                new Vector2(length, coreWidth), SpriteEffects.None, 0f);
 
-            // Core (bright white-blue)
-            Color coreColor = new(220, 240, 255, a);
-            spriteBatch.Draw(Constants.WhitePixel, startScreen, null, coreColor, angle, Vector2.Zero,
-                new Vector2(length, 1.5f * Camera.Zoom), SpriteEffects.None, 0f);
+            // Glow dot at the start vertex to smooth the joint
+            if (_glowTexture != null && !_glowTexture.IsDisposed)
+            {
+                spriteBatch.Draw(_glowTexture, startScreen, null, vertexGlowColor, 0f, glowOrigin,
+                    glowDotScale, SpriteEffects.None, 0f);
+            }
+
+            // Micro-spark: occasional tiny blue dot scattered near the segment midpoint
+            if (Globals.Random.NextFloat() < 0.4f)
+            {
+                Vector2 mid = Vector2.Lerp(startScreen, endScreen, Globals.Random.NextFloat(0.2f, 0.8f));
+                Vector2 perp = new(-diff.Y, diff.X);
+                if (perp.LengthSquared() > 0) perp.Normalize();
+                mid += perp * Globals.Random.NextFloat(-2f, 2f) * Camera.Zoom;
+
+                float sparkSize = Globals.Random.NextFloat(0.5f, 1.5f) * Camera.Zoom;
+                int sparkAlpha = Globals.Random.Next(120, 255);
+                Color sparkColor = new(180, 230, 255, sparkAlpha);
+                spriteBatch.Draw(Constants.WhitePixel, mid, null, sparkColor, 0f,
+                    new Vector2(0.5f, 0.5f), sparkSize, SpriteEffects.None, 0f);
+            }
+        }
+
+        // Glow dot at the final vertex
+        if (_glowTexture != null && !_glowTexture.IsDisposed && bolt.Segments.Length > 1)
+        {
+            Vector2 lastWorld = bolt.Segments[bolt.Segments.Length - 1];
+            Camera.ConvertWorldToScreen(ref lastWorld, out Vector2 lastScreen);
+            spriteBatch.Draw(_glowTexture, lastScreen, null, vertexGlowColor, 0f, glowOrigin,
+                glowDotScale, SpriteEffects.None, 0f);
         }
     }
 
