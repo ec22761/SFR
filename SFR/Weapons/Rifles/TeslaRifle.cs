@@ -24,7 +24,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     // --- Gameplay constants ---
     private const float BeamRange = 999f; // effectively unlimited — clamped to screen edge
     private const float BeamDamage = 2f;
-    private const float BeamObjectDamage = 12f; // higher damage to objects so beam breaks lights, chains, barrels etc.
+    private const float BeamObjectDamage = 9999f; // massive damage — instantly smash through any object
     private const float WindUpDuration = 800f; // ms to fully charge
     private const float WindUpDecay = 400f; // ms to lose charge when not firing
     private const float SoundCooldown = 180f;
@@ -38,8 +38,19 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private const float FiringBeamCoreWidth = 1f;
 
     private const float SparkEffectInterval = 40f; // ms between spark draws at hit point
-    private const int SparkCount = 3; // sparks per frame at hit point
-    private const float HitEffectInterval = 150f; // ms between material smoke/dust effects at hit point
+    private const int SparkCount = 6; // sparks per frame at hit point
+    private const float HitEffectInterval = 80f; // ms between material smoke/dust effects at hit point
+    private const int MaxPierceIterations = 20; // max objects the beam can pierce through
+    private const float PlasmaGlowRadius = 8f; // radius of the blue plasma glow at beam end
+    private const int PlasmaParticleCount = 8; // number of blue plasma particles per frame
+    private const float PlasmaEffectInterval = 30f; // ms between plasma particle spawns
+    private const float SmokeEffectInterval = 60f; // ms between smoke effects at hit point
+
+    // --- Beam electric arc constants (showstopper-style arcs along the beam) ---
+    private const int MaxBeamArcs = 8;
+    private const float ArcSpawnInterval = 80f;   // ms between new arc spawns along the beam
+    private const float ArcLength = 14f;          // perpendicular reach of each arc from the beam
+    private const int ArcSegmentCount = 6;        // jagged segments per arc
 
     private static Texture2D _pixelTexture;
 
@@ -53,7 +64,15 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private Vector2 _beamDir; // world-space beam direction (for stable rendering)
     private float _lastSparkEffectTime; // throttle spark effects at beam hit
     private float _lastHitEffectTime; // throttle material hit effects (smoke/dust)
+    private float _lastPlasmaEffectTime; // throttle plasma particle draws
+    private float _lastSmokeEffectTime; // throttle smoke puff effects
     private bool _beamHitSurface; // whether the beam hit a solid surface (not a player/empty)
+
+    // Beam electric arc state
+    private readonly BeamArc[] _beamArcs = new BeamArc[MaxBeamArcs];
+    private int _nextArcIndex;
+    private float _lastArcSpawnTime;
+    private bool _arcsInitialized;
 
     // Cached game-computed muzzle position for smooth DrawExtra visuals.
     // Updated every BeforeCreateProjectile call (~50ms). In DrawExtra we
@@ -228,27 +247,102 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
             // damage is handled invisibly in BeforeCreateProjectile.
             player.GameWorld.DrawLazer(spriteBatch, true, muzzleWorld, previewEnd, aimDir);
 
-            // Blue glow overlay at full opacity.
-            DrawBeamLine(spriteBatch, muzzleWorld, previewEnd, aimDir, new Color(30, 80, 200, 60), FiringBeamOuterWidth);
-            DrawBeamLine(spriteBatch, muzzleWorld, previewEnd, aimDir, new Color(80, 180, 255, 120), FiringBeamMidWidth);
+            // Thick blue glow overlay — super strong beam look.
+            DrawBeamLine(spriteBatch, muzzleWorld, previewEnd, aimDir, new Color(20, 50, 180, 40), FiringBeamOuterWidth * 2f);
+            DrawBeamLine(spriteBatch, muzzleWorld, previewEnd, aimDir, new Color(30, 80, 200, 70), FiringBeamOuterWidth);
+            DrawBeamLine(spriteBatch, muzzleWorld, previewEnd, aimDir, new Color(80, 180, 255, 130), FiringBeamMidWidth);
             // Almost-white core.
             DrawBeamLine(spriteBatch, muzzleWorld, previewEnd, aimDir, new Color(220, 240, 255, 240), FiringBeamCoreWidth);
 
-            // Blue spark particles at beam hit point — tiny custom-drawn dots.
-            if (hitSomething && now > _lastSparkEffectTime + SparkEffectInterval)
+            // ── Strong smoke + blue plasma effects at beam endpoint ──
+            if (hitSomething)
             {
-                _lastSparkEffectTime = now;
-                for (int i = 0; i < SparkCount; i++)
+                // Smoke and spark game effects at impact.
+                if (now > _lastSmokeEffectTime + SmokeEffectInterval)
                 {
-                    Vector2 sparkWorld = previewEnd + new Vector2(
-                        Globals.Random.NextFloat(-2f, 2f), Globals.Random.NextFloat(-2f, 2f));
-                    Vector2 sparkScreen = WorldToScreen(sparkWorld);
-                    float sparkSize = Globals.Random.NextFloat(0.5f, 1.5f) * Camera.ZoomUpscaled;
-                    int sparkAlpha = Globals.Random.Next(150, 255);
-                    Color sparkColor = new(160, 220, 255, sparkAlpha);
-                    spriteBatch.Draw(_pixelTexture, sparkScreen, null, sparkColor, 0f,
-                        new Vector2(0.5f, 0.5f), sparkSize, SpriteEffects.None, 0f);
+                    EffectHandler.PlayEffect("S_P", previewEnd, player.GameWorld);
+                    EffectHandler.PlayEffect("TR_S", previewEnd, player.GameWorld);
+                    _lastSmokeEffectTime = now;
                 }
+
+                // Large blue plasma glow — multiple overlapping circles.
+                if (now > _lastPlasmaEffectTime + PlasmaEffectInterval)
+                {
+                    _lastPlasmaEffectTime = now;
+
+                    // Big plasma particles radiating outward from impact.
+                    for (int i = 0; i < PlasmaParticleCount; i++)
+                    {
+                        float spread = PlasmaGlowRadius;
+                        Vector2 plasmaWorld = previewEnd + new Vector2(
+                            Globals.Random.NextFloat(-spread, spread),
+                            Globals.Random.NextFloat(-spread, spread));
+                        Vector2 plasmaScreen = WorldToScreen(plasmaWorld);
+                        float plasmaSize = Globals.Random.NextFloat(2f, 5f) * Camera.ZoomUpscaled;
+                        int plasmaAlpha = Globals.Random.Next(80, 200);
+                        Color plasmaColor = new(40, 120, 255, plasmaAlpha);
+                        spriteBatch.Draw(_pixelTexture, plasmaScreen, null, plasmaColor, 0f,
+                            new Vector2(0.5f, 0.5f), plasmaSize, SpriteEffects.None, 0f);
+                    }
+
+                    // Bright white-blue plasma core at exact impact point.
+                    Vector2 coreScreen = WorldToScreen(previewEnd);
+                    float coreSize = Globals.Random.NextFloat(3f, 6f) * Camera.ZoomUpscaled;
+                    spriteBatch.Draw(_pixelTexture, coreScreen, null, new Color(180, 220, 255, 220), 0f,
+                        new Vector2(0.5f, 0.5f), coreSize, SpriteEffects.None, 0f);
+
+                    // Outer blue plasma haze — large soft glow.
+                    float hazeSize = Globals.Random.NextFloat(8f, 14f) * Camera.ZoomUpscaled;
+                    spriteBatch.Draw(_pixelTexture, coreScreen, null, new Color(30, 80, 220, 50), 0f,
+                        new Vector2(0.5f, 0.5f), hazeSize, SpriteEffects.None, 0f);
+                }
+
+                // Blue spark particles at beam hit point — more and brighter than before.
+                if (now > _lastSparkEffectTime + SparkEffectInterval)
+                {
+                    _lastSparkEffectTime = now;
+                    for (int i = 0; i < SparkCount; i++)
+                    {
+                        Vector2 sparkWorld = previewEnd + new Vector2(
+                            Globals.Random.NextFloat(-4f, 4f), Globals.Random.NextFloat(-4f, 4f));
+                        Vector2 sparkScreen = WorldToScreen(sparkWorld);
+                        float sparkSize = Globals.Random.NextFloat(1f, 3f) * Camera.ZoomUpscaled;
+                        int sparkAlpha = Globals.Random.Next(180, 255);
+                        Color sparkColor = new(120, 200, 255, sparkAlpha);
+                        spriteBatch.Draw(_pixelTexture, sparkScreen, null, sparkColor, 0f,
+                            new Vector2(0.5f, 0.5f), sparkSize, SpriteEffects.None, 0f);
+                    }
+                }
+            }
+
+            // ── Electric arcs along the beam (showstopper-style) ──
+            if (!_arcsInitialized)
+            {
+                for (int i = 0; i < MaxBeamArcs; i++)
+                    _beamArcs[i] = new BeamArc();
+                _arcsInitialized = true;
+            }
+
+            // Spawn new arcs periodically at random positions along the beam.
+            if (now > _lastArcSpawnTime + ArcSpawnInterval)
+            {
+                _lastArcSpawnTime = now;
+                float t = Globals.Random.NextFloat(0.05f, 0.85f);
+                Vector2 arcOrigin = Vector2.Lerp(muzzleWorld, previewEnd, t);
+
+                _beamArcs[_nextArcIndex].Activate(arcOrigin, aimDir,
+                    Globals.Random.NextFloat(ArcLength * 0.5f, ArcLength),
+                    Globals.Random.NextFloat(100f, 250f));
+                _nextArcIndex = (_nextArcIndex + 1) % MaxBeamArcs;
+            }
+
+            // Update and draw all active arcs.
+            for (int i = 0; i < MaxBeamArcs; i++)
+            {
+                if (!_beamArcs[i].Active) continue;
+                _beamArcs[i].Update(ms);
+                if (!_beamArcs[i].Active) continue;
+                DrawBeamArc(spriteBatch, _beamArcs[i]);
             }
         }
         else if (_windUpProgress > 0f)
@@ -360,50 +454,115 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 
         if (args.Player.GameOwner != GameOwnerEnum.Client)
         {
-            // Server/host: do the damage raycast.
-            GameWorld.RayCastResult ray = args.Player.GameWorld.RayCast(
-                muzzleWorld, aimDir, 0f, range, LazerRayCastCollision, _ => true);
+            // Server/host: piercing damage raycast — beam smashes through all objects.
+            Vector2 castOrigin = muzzleWorld;
+            float remainingRange = range;
+            _beamHitSurface = false;
 
-            if (ray.EndFixture is not null)
+            for (int pierce = 0; pierce < MaxPierceIterations && remainingRange > 1f; pierce++)
             {
-                _beamEnd = ray.EndPosition;
+                GameWorld.RayCastResult ray = args.Player.GameWorld.RayCast(
+                    castOrigin, aimDir, 0f, remainingRange, LazerRayCastCollision, _ => true);
+
+                if (ray.EndFixture is null)
+                {
+                    // Nothing more to hit — beam ends at max range.
+                    _beamEnd = castOrigin + aimDir * remainingRange;
+                    break;
+                }
+
                 ObjectData hitObj = ObjectData.Read(ray.EndFixture);
 
                 if (hitObj.IsPlayer && hitObj.InternalData is Player hitPlayer &&
                     !hitPlayer.IsDead && !hitPlayer.IsRemoved)
                 {
                     hitPlayer.TakeMiscDamage(BeamDamage, sourceID: args.Player.ObjectID);
-                }
-                else
-                {
-                    _beamHitSurface = true;
-                    if (hitObj.Destructable)
-                    {
-                        hitObj.DealScriptDamage((int)BeamObjectDamage, args.Player.ObjectID);
-                    }
 
-                    // Play material-based smoke/dust effects at hit point (like bullets do).
-                    if (now > _lastHitEffectTime + HitEffectInterval && hitObj.Tile?.Material != null)
+                    // Pierce through players — continue beam past them.
+                    float traveled = Vector2.Distance(castOrigin, ray.EndPosition) + 2f;
+                    castOrigin = ray.EndPosition + aimDir * 2f;
+                    remainingRange -= traveled;
+                    continue;
+                }
+
+                // Non-player object hit.
+                if (hitObj.Destructable)
+                {
+                    // Obliterate the object instantly.
+                    hitObj.DealScriptDamage((int)BeamObjectDamage, args.Player.ObjectID);
+
+                    // Play material destruction effects at each smashed object.
+                    if (hitObj.Tile?.Material != null)
                     {
                         Material mat = hitObj.Tile.Material;
                         EffectHandler.PlayEffect(mat.Hit.Projectile.HitEffect, ray.EndPosition, args.Player.GameWorld);
                         SoundHandler.PlaySound(mat.Hit.Projectile.HitSound, ray.EndPosition, args.Player.GameWorld);
-                        _lastHitEffectTime = now;
                     }
+
+                    // Pierce through — continue beam past the destroyed object.
+                    float traveled = Vector2.Distance(castOrigin, ray.EndPosition) + 2f;
+                    castOrigin = ray.EndPosition + aimDir * 2f;
+                    remainingRange -= traveled;
+                    continue;
                 }
-            }
-            else
-            {
-                _beamEnd = muzzleWorld + aimDir * range;
+
+                // Hit an indestructible surface — beam stops here.
+                _beamEnd = ray.EndPosition;
+                _beamHitSurface = true;
+
+                // Play material-based smoke/dust effects at final hit point.
+                if (now > _lastHitEffectTime + HitEffectInterval && hitObj.Tile?.Material != null)
+                {
+                    Material mat = hitObj.Tile.Material;
+                    EffectHandler.PlayEffect(mat.Hit.Projectile.HitEffect, ray.EndPosition, args.Player.GameWorld);
+                    SoundHandler.PlaySound(mat.Hit.Projectile.HitSound, ray.EndPosition, args.Player.GameWorld);
+                    _lastHitEffectTime = now;
+                }
+
+                // Strong smoke + spark effects at impact point.
+                if (now > _lastSmokeEffectTime + SmokeEffectInterval)
+                {
+                    EffectHandler.PlayEffect("S_P", ray.EndPosition, args.Player.GameWorld);
+                    EffectHandler.PlayEffect("TR_S", ray.EndPosition, args.Player.GameWorld);
+                    _lastSmokeEffectTime = now;
+                }
+                break;
             }
         }
         else
         {
-            // Client: visual-only raycast for beam endpoint.
-            GameWorld.RayCastResult ray = args.Player.GameWorld.RayCast(
-                muzzleWorld, aimDir, 0f, range, LazerRayCastCollision, _ => true);
-            _beamEnd = ray.EndFixture is not null ? ray.EndPosition : muzzleWorld + aimDir * range;
-            _beamHitSurface = ray.EndFixture is not null;
+            // Client: visual-only raycast for beam endpoint — also pierce through destructibles.
+            Vector2 castOrigin = muzzleWorld;
+            float remainingRange = range;
+            _beamHitSurface = false;
+
+            for (int pierce = 0; pierce < MaxPierceIterations && remainingRange > 1f; pierce++)
+            {
+                GameWorld.RayCastResult ray = args.Player.GameWorld.RayCast(
+                    castOrigin, aimDir, 0f, remainingRange, LazerRayCastCollision, _ => true);
+
+                if (ray.EndFixture is null)
+                {
+                    _beamEnd = castOrigin + aimDir * remainingRange;
+                    break;
+                }
+
+                ObjectData hitObj = ObjectData.Read(ray.EndFixture);
+
+                if (hitObj.IsPlayer || hitObj.Destructable)
+                {
+                    // Pierce through players and destructible objects visually.
+                    float traveled = Vector2.Distance(castOrigin, ray.EndPosition) + 2f;
+                    castOrigin = ray.EndPosition + aimDir * 2f;
+                    remainingRange -= traveled;
+                    continue;
+                }
+
+                // Indestructible surface — beam ends here.
+                _beamEnd = ray.EndPosition;
+                _beamHitSurface = true;
+                break;
+            }
         }
 
         _lastDamageBeamTime = now;
@@ -533,12 +692,133 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
         return pos;
     }
 
+    /// <summary>
+    ///     Draw a single electric arc (showstopper-style jagged bolt).
+    /// </summary>
+    private static void DrawBeamArc(SpriteBatch spriteBatch, BeamArc arc)
+    {
+        if (arc.Segments == null) return;
+
+        int a = Math.Min(255, (int)(arc.Alpha * 255));
+        if (a <= 0) return;
+
+        Color outerColor = new(60, 180, 255, (int)(a * 0.5f));
+        Color coreColor = new(220, 240, 255, a);
+
+        Vector2 lineOrigin = new(0f, 0.5f);
+        float outerWidth = 2.5f * Camera.ZoomUpscaled;
+        float coreWidth = 1f * Camera.ZoomUpscaled;
+
+        for (int i = 0; i < arc.Segments.Length - 1; i++)
+        {
+            Vector2 startScreen = WorldToScreen(arc.Segments[i]);
+            Vector2 endScreen = WorldToScreen(arc.Segments[i + 1]);
+
+            Vector2 diff = endScreen - startScreen;
+            float length = diff.Length();
+            if (length < 0.5f) continue;
+
+            float angle = (float)Math.Atan2(diff.Y, diff.X);
+
+            // Outer glow (cyan)
+            spriteBatch.Draw(_pixelTexture, startScreen, null, outerColor, angle, lineOrigin,
+                new Vector2(length, outerWidth), SpriteEffects.None, 0f);
+            // Bright core
+            spriteBatch.Draw(_pixelTexture, startScreen, null, coreColor, angle, lineOrigin,
+                new Vector2(length, coreWidth), SpriteEffects.None, 0f);
+
+            // Micro-spark near segment midpoint
+            if (Globals.Random.NextFloat() < 0.4f)
+            {
+                Vector2 mid = Vector2.Lerp(startScreen, endScreen, Globals.Random.NextFloat(0.2f, 0.8f));
+                Vector2 perp = new(-diff.Y, diff.X);
+                if (perp.LengthSquared() > 0) perp.Normalize();
+                mid += perp * Globals.Random.NextFloat(-1.5f, 1.5f) * Camera.ZoomUpscaled;
+
+                float sparkSize = Globals.Random.NextFloat(0.5f, 1.5f) * Camera.ZoomUpscaled;
+                Color sparkColor = new(180, 230, 255, Globals.Random.Next(120, 255));
+                spriteBatch.Draw(_pixelTexture, mid, null, sparkColor, 0f,
+                    new Vector2(0.5f, 0.5f), sparkSize, SpriteEffects.None, 0f);
+            }
+        }
+    }
+
     private static void EnsurePixelTexture(SpriteBatch spriteBatch)
     {
         if (_pixelTexture == null || _pixelTexture.IsDisposed)
         {
             _pixelTexture = new Texture2D(spriteBatch.GraphicsDevice, 1, 1);
             _pixelTexture.SetData([Color.White]);
+        }
+    }
+
+    /// <summary>
+    ///     Short electric arc that travels along the beam direction — styled after
+    ///     the ShowStopper's LightningBolt with jagged, jittering segments.
+    /// </summary>
+    private sealed class BeamArc
+    {
+        internal bool Active;
+        internal Vector2[] Segments;
+        internal float Lifetime;
+        internal float MaxLifetime;
+        internal float Alpha;
+        private float _jitterTimer;
+        private Vector2 _beamDir;  // cached beam direction for jitter
+
+        internal void Activate(Vector2 beamPoint, Vector2 beamDir, float length, float lifetime)
+        {
+            Active = true;
+            Lifetime = lifetime;
+            MaxLifetime = lifetime;
+            Alpha = 1f;
+            _beamDir = beamDir;
+
+            // Arc extends along the beam direction from this point.
+            Vector2 end = beamPoint + beamDir * length;
+            GenerateSegments(beamPoint, end);
+        }
+
+        private void GenerateSegments(Vector2 start, Vector2 end)
+        {
+            Segments = new Vector2[ArcSegmentCount + 1];
+            Segments[0] = start;
+            Segments[ArcSegmentCount] = end;
+
+            // Perpendicular to the beam for jagged offsets.
+            Vector2 perp = new(-_beamDir.Y, _beamDir.X);
+
+            for (int i = 1; i < ArcSegmentCount; i++)
+            {
+                float t = (float)i / ArcSegmentCount;
+                Vector2 midpoint = Vector2.Lerp(start, end, t);
+
+                float offset = Globals.Random.NextFloat(-4f, 4f) * (1f - Math.Abs(t - 0.5f) * 2f);
+                Segments[i] = midpoint + perp * offset;
+            }
+        }
+
+        internal void Update(float ms)
+        {
+            Lifetime -= ms;
+            if (Lifetime <= 0f)
+            {
+                Active = false;
+                return;
+            }
+
+            Alpha = Lifetime / MaxLifetime;
+
+            // Re-jitter segments periodically for a flickering effect.
+            _jitterTimer -= ms;
+            if (_jitterTimer <= 0f)
+            {
+                _jitterTimer = 40f;
+                if (Segments != null && Segments.Length > 2)
+                {
+                    GenerateSegments(Segments[0], Segments[Segments.Length - 1]);
+                }
+            }
         }
     }
 }
