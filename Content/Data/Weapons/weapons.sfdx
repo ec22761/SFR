@@ -3226,6 +3226,32 @@ Tile(WpnMimicMineThrown)
 	}
 }
 
+Tile(WpnTeslaRifle)
+{
+	tileTexture = TeslaRifleM;
+	pickupType = instant;
+	pickupRange = 10.0;
+	absorbProjectile = false;
+	projectileHit = false;
+	impactEffect = ImpactDefault;
+	impactSound = WeaponBounce;
+	missileDamageMax = 14;
+	fixture()
+	{
+		collisionGroup = debris;
+		mass = 3 kg;
+		collisionPoints = (-5.5, 1), (13.5, 1), (13.5, 3.5), (-5.5, 3.5);
+		blockFire = false;
+	}
+	fixture(stock)
+	{
+		collisionGroup = debris;
+		mass = 2.5 kg;
+		collisionPoints = (-10.5, -1.5), (-5.5, 0.5), (-5.5, 3.5), (-10.5, 3.5);
+		blockFire = false;
+	}
+}
+
 // disable editorEnabled again
 defaultTile(default_tile)
 {

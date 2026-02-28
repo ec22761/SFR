@@ -79,6 +79,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Rifle, new AK47()), // 107
             new WeaponItem(WeaponItemType.Rifle, new Blowpipe()), // 114
             new WeaponItem(WeaponItemType.Rifle, new HandCannon()), // 116
+            new WeaponItem(WeaponItemType.Rifle, new TeslaRifle()), // 117
 
             // Pickup
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
@@ -221,10 +222,11 @@ internal static class Database
             { 110, 12 }, // Leap boost
             //{ 111, 14 }, // Gas grenade
             { 112, 10 }, // Show Stopper
-            { 113, 10 }, // Leap Mine
+            // { 113, 10 }, // Leap Mine
             //{ 114, 10 }, // Blowpipe
             { 115, 8 }, // Mimic Mine
-            { 116, 6 } // Hand Cannon
+            { 116, 6 }, // Hand Cannon
+            { 117, 6 } // Tesla Rifle
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -347,6 +349,7 @@ internal static class Database
         LeapMine,
         Blowpipe,
         MimicMine,
-        HandCannon
+        HandCannon,
+        TeslaRifle
     }
 }

@@ -30,5 +30,6 @@ internal static class Database
         ProjectileDatabase.projectiles[102] = new ProjectileMinigun();
         ProjectileDatabase.projectiles[114] = new ProjectileBlowpipe();
         ProjectileDatabase.projectiles[115] = new ProjectileCannon();
+        ProjectileDatabase.projectiles[116] = new ProjectileTeslaRifle();
     }
 }

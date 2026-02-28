@@ -4,6 +4,10 @@ Sledgehammer 0,5 Weapons\Sledgehammer
 MinigunSpin 0,5 Weapons\Gatling_spin
 MinigunDown 0,5 Weapons\Gatling_wind_down
 MinigunUp 0,5 Weapons\Gatling_wind_up
+TeslaSpin 0,5 Weapons\Tesla_spin
+TeslaDown 0,5 Weapons\Tesla_wind_down
+TeslaUp 0,5 Weapons\Tesla_wind_up
 GLFire 0,5 Weapons\GLFire
 ElectricZap 0,5 Weapons\ElectricZap
+TeslaBeamFire 0,5 Weapons\TeslaBeamFire
 GasHiss 0,5 Weapons\GasHiss
