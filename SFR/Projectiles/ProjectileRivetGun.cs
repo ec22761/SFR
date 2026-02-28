@@ -29,7 +29,7 @@ internal sealed class ProjectileRivetGun : Projectile, IExtendedProjectile
     internal ProjectileRivetGun()
     {
         Visuals = new ProjectileVisuals(Textures.GetTexture("ProjectileNailgun"), Textures.GetTexture("ProjectileNailgun"));
-        Properties = new ProjectileProperties(119, 550f, 15f, 12f, 10f, 0.12f, 15f, 12f, 0.2f)
+        Properties = new ProjectileProperties(116, 550f, 15f, 12f, 10f, 0.12f, 15f, 12f, 0.2f)
         {
             PowerupBounceRandomAngle = 0f,
             PowerupFireType = ProjectilePowerupFireType.Default,

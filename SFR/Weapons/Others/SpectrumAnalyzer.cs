@@ -12,7 +12,7 @@ internal class SpectrumAnalyzer : PItem
 {
     internal SpectrumAnalyzer()
     {
-        PItemProperties itemProperties = new(118, "SpectrumAnalyzer", "ItemSpectrumAnalyzer", false, WeaponCategory.Supply)
+        PItemProperties itemProperties = new(115, "SpectrumAnalyzer", "ItemSpectrumAnalyzer", false, WeaponCategory.Supply)
         {
             PickupSoundID = "GetSlomo",
             ActivateSoundID = "",

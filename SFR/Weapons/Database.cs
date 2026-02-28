@@ -24,7 +24,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[120];
+        WeaponDatabase.m_weapons = new WeaponItem[117];
 
         Weapons ??=
         [
@@ -60,10 +60,8 @@ internal static class Database
             new WeaponItem(WeaponItemType.Thrown, new ImpactGrenade()), // 89
             new WeaponItem(WeaponItemType.Thrown, new Snowball()), // 90
             new WeaponItem(WeaponItemType.Thrown, new StickyBomb()), // 91
-            new WeaponItem(WeaponItemType.Thrown, new GasGrenade()), // 111
-            new WeaponItem(WeaponItemType.Thrown, new ShowStopper()), // 112
-            new WeaponItem(WeaponItemType.Thrown, new LeapMine()), // 113
-            new WeaponItem(WeaponItemType.Thrown, new MimicMine()), // 115
+            new WeaponItem(WeaponItemType.Thrown, new ShowStopper()), // 111
+            new WeaponItem(WeaponItemType.Thrown, new MimicMine()), // 112
 
             // Rifle
             new WeaponItem(WeaponItemType.Rifle, new AA12()), // 93
@@ -77,10 +75,9 @@ internal static class Database
             new WeaponItem(WeaponItemType.Rifle, new Winchester()), // 101
             new WeaponItem(WeaponItemType.Rifle, new Minigun()), // 102
             new WeaponItem(WeaponItemType.Rifle, new AK47()), // 107
-            new WeaponItem(WeaponItemType.Rifle, new Blowpipe()), // 114
-            new WeaponItem(WeaponItemType.Rifle, new HandCannon()), // 116
-            new WeaponItem(WeaponItemType.Rifle, new TeslaRifle()), // 117
-            new WeaponItem(WeaponItemType.Rifle, new RivetGun()), // 119
+            new WeaponItem(WeaponItemType.Rifle, new HandCannon()), // 113
+            new WeaponItem(WeaponItemType.Rifle, new TeslaRifle()), // 114
+            new WeaponItem(WeaponItemType.Rifle, new RivetGun()), // 116
 
             // Pickup
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
@@ -91,7 +88,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()), // 106
 
             // Consumable
-            new WeaponItem(WeaponItemType.Powerup, new SpectrumAnalyzer()) // 118
+            new WeaponItem(WeaponItemType.Powerup, new SpectrumAnalyzer()) // 115
         ];
 
         foreach (WeaponItem weapon in Weapons)
@@ -224,15 +221,12 @@ internal static class Database
             { 108, 8 }, // Scythe
             { 109, 10 }, // Anaconda
             { 110, 12 }, // Leap boost
-            //{ 111, 14 }, // Gas grenade
-            { 112, 10 }, // Show Stopper
-            // { 113, 10 }, // Leap Mine
-            //{ 114, 10 }, // Blowpipe
-            { 115, 8 }, // Mimic Mine
-            { 116, 2 }, // Hand Cannon
-            { 117, 8 }, // Tesla Rifle
-            { 118, 10 }, // Spectrum Analyzer
-            { 119, 8 } // Rivet Gun
+            { 111, 10 }, // Show Stopper
+            { 112, 8 }, // Mimic Mine
+            { 113, 2 }, // Hand Cannon
+            { 114, 8 }, // Tesla Rifle
+            { 115, 10 }, // Spectrum Analyzer
+            { 116, 8 } // Rivet Gun
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -350,10 +344,7 @@ internal static class Database
         Jetpack,
         JetpackEditor,
         Gunpack,
-        GasGrenade,
         ShowStopper,
-        LeapMine,
-        Blowpipe,
         MimicMine,
         HandCannon,
         TeslaRifle,

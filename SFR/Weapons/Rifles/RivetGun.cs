@@ -16,7 +16,7 @@ internal sealed class RivetGun : RWeapon
 {
     internal RivetGun()
     {
-        RWeaponProperties weaponProperties = new(119, "Rivet_Gun", "WpnRivetGun", false, WeaponCategory.Primary)
+        RWeaponProperties weaponProperties = new(116, "Rivet_Gun", "WpnRivetGun", false, WeaponCategory.Primary)
         {
             MaxMagsInWeapon = 1,
             MaxRoundsInMag = 12,
@@ -27,7 +27,7 @@ internal sealed class RivetGun : RWeapon
             ExtraAutomaticCooldown = 0,
             ShellID = string.Empty,
             AccuracyDeflection = 0.08f,
-            ProjectileID = 119,
+            ProjectileID = 116,
             MuzzlePosition = new Vector2(13f, -2.5f),
             CursorAimOffset = new Vector2(0f, 2.5f),
             LazerPosition = new Vector2(12f, -1.5f),

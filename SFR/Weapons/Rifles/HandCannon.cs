@@ -11,7 +11,7 @@ internal sealed class HandCannon : RWeapon
 {
     internal HandCannon()
     {
-        RWeaponProperties weaponProperties = new(116, "Hand_Cannon", "WpnHandCannon", false, WeaponCategory.Primary)
+        RWeaponProperties weaponProperties = new(113, "Hand_Cannon", "WpnHandCannon", false, WeaponCategory.Primary)
         {
             MaxMagsInWeapon = 1,
             MaxRoundsInMag = 1,
@@ -23,7 +23,7 @@ internal sealed class HandCannon : RWeapon
             ProjectilesEachBlast = 1,
             ShellID = string.Empty,
             AccuracyDeflection = 0.06f,
-            ProjectileID = 115,
+            ProjectileID = 113,
             MuzzlePosition = new Vector2(13f, -2.5f),
             CursorAimOffset = new Vector2(0f, 2.5f),
             LazerPosition = new Vector2(12f, -1.5f),

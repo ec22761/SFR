@@ -70,7 +70,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 
     internal TeslaRifle()
     {
-        RWeaponProperties weaponProperties = new(117, "Tesla_Rifle", "WpnTeslaRifle", false, WeaponCategory.Primary)
+        RWeaponProperties weaponProperties = new(114, "Tesla_Rifle", "WpnTeslaRifle", false, WeaponCategory.Primary)
         {
             MaxMagsInWeapon = 1,
             MaxRoundsInMag = 150,
@@ -82,7 +82,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
             ProjectilesEachBlast = 1,
             ShellID = string.Empty,
             AccuracyDeflection = 0.01f,
-            ProjectileID = 116,
+            ProjectileID = 114,
             MuzzlePosition = new Vector2(12f, -1.5f),
             CursorAimOffset = new Vector2(0f, 1.5f),
             LazerPosition = new Vector2(10f, -3f),

@@ -19,7 +19,7 @@ internal sealed class ProjectileCannon : ProjectileBazooka
     internal ProjectileCannon()
     {
         Visuals = new ProjectileVisuals(Textures.GetTexture("CannonBall00"), Textures.GetTexture("CannonBall00"));
-        Properties = new ProjectileProperties(115, 300f, 0f, 20f, 20f, 0f, 0f, 25f, 0.5f)
+        Properties = new ProjectileProperties(113, 300f, 0f, 20f, 20f, 0f, 0f, 25f, 0.5f)
         {
             DodgeChance = 0f,
             CanBeAbsorbedOrBlocked = false,

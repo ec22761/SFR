@@ -8,7 +8,7 @@ internal sealed class MimicMine : TWeapon
 {
     internal MimicMine()
     {
-        TWeaponProperties weaponProperties = new(115, "Mimic_Mine", "WpnMimicMine", false, WeaponCategory.Supply)
+        TWeaponProperties weaponProperties = new(112, "Mimic_Mine", "WpnMimicMine", false, WeaponCategory.Supply)
         {
             MaxCarriedTotalThrowables = 2,
             NumberOfThrowables = 1,
