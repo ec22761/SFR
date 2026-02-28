@@ -80,6 +80,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Rifle, new Blowpipe()), // 114
             new WeaponItem(WeaponItemType.Rifle, new HandCannon()), // 116
             new WeaponItem(WeaponItemType.Rifle, new TeslaRifle()), // 117
+            new WeaponItem(WeaponItemType.Rifle, new RivetGun()), // 119
 
             // Pickup
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
@@ -228,9 +229,10 @@ internal static class Database
             // { 113, 10 }, // Leap Mine
             //{ 114, 10 }, // Blowpipe
             { 115, 8 }, // Mimic Mine
-            { 116, 6 }, // Hand Cannon
-            { 117, 6 }, // Tesla Rifle
-            { 118, 6 } // Spectrum Analyzer
+            { 116, 2 }, // Hand Cannon
+            { 117, 8 }, // Tesla Rifle
+            { 118, 10 }, // Spectrum Analyzer
+            { 119, 8 } // Rivet Gun
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -355,6 +357,7 @@ internal static class Database
         MimicMine,
         HandCannon,
         TeslaRifle,
-        SpectrumAnalyzer
+        SpectrumAnalyzer,
+        RivetGun
     }
 }

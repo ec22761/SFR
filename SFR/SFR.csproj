@@ -145,6 +145,8 @@
     <Compile Include="Projectiles\ProjectileBlowpipe.cs" />
     <Compile Include="Projectiles\ProjectileCannon.cs" />
     <Compile Include="Projectiles\ProjectileTeslaRifle.cs" />
+    <Compile Include="Projectiles\ProjectileRivetGun.cs" />
+    <Compile Include="Projectiles\ProjectileRivetShrapnel.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>true</AutoGen>
       <DesignTime>true</DesignTime>
@@ -205,6 +207,7 @@
     <Compile Include="Weapons\Rifles\QuadLauncher.cs" />
     <Compile Include="Weapons\Rifles\RCM.cs" />
     <Compile Include="Weapons\Rifles\Winchester.cs" />
+    <Compile Include="Weapons\Rifles\RivetGun.cs" />
     <Compile Include="Weapons\Thrown\Claymore.cs" />
     <Compile Include="Weapons\Thrown\FragGrenade.cs" />
     <Compile Include="Weapons\Thrown\GasGrenade.cs" />

@@ -459,14 +459,6 @@ internal static class PlayerHandler
             if (!player.IsDead && !player.IsRemoved)
             {
                 player.DeathKneeling = true;
-
-                // Play blue spark effects periodically
-                if (extendedPlayer.Time.Electrocution % 150f < ms)
-                {
-                    SFD.Effects.EffectHandler.PlayEffect("S_P", player.Position + new Vector2(
-                        Globals.Random.NextFloat(-4f, 4f),
-                        Globals.Random.NextFloat(0f, 12f)), player.GameWorld, 0.7f);
-                }
             }
 
             if (!extendedPlayer.Electrocuted || player.IsDead)

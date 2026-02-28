@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Box2D.XNA;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -20,7 +21,7 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
 {
     // Lightning burst parameters
     private const float BurstRadius = 50f;
-    private const float ElectrocutionDuration = 6000f; // 6 seconds in ms
+    private const float OutOfRadiusDestunTime = 1500f; // 1.5 seconds
 
     // Electric field effect parameters (visual aura around the grenade before detonation)
     private const float FieldEffectInterval = 80f;
@@ -64,6 +65,10 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
 
     // Lightning bolt visuals (on detonation)
     private readonly LightningBolt[] _lightningBolts = new LightningBolt[LightningBolts];
+
+    // Player tracking for radius-based destun
+    private readonly List<Player> _trackedPlayers = new();
+    private readonly HashSet<int> _outOfRadiusPlayerIds = new();
 
     // Procedural glow texture
     private static Texture2D _glowTexture;
@@ -286,10 +291,19 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
         }
     }
 
-    private void ElectrocutePlayer(Player player, float duration = ElectrocutionDuration)
+    private void ElectrocutePlayer(Player player)
     {
         ExtendedPlayer extendedPlayer = player.GetExtension();
-        // Don't re-electrocute if already electrocuted with more time remaining
+
+        // Track player for radius-based destun management
+        if (!_trackedPlayers.Contains(player))
+        {
+            _trackedPlayers.Add(player);
+        }
+        _outOfRadiusPlayerIds.Remove(player.ObjectID);
+
+        // Don't re-electrocute if already electrocuted with sufficient time remaining
+        float duration = Math.Max(_lightningTimer, OutOfRadiusDestunTime);
         if (extendedPlayer.Electrocuted && extendedPlayer.Time.Electrocution >= duration)
             return;
 
@@ -302,6 +316,29 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
         // Sync the state to clients
         Sync.Generic.GenericData.SendGenericDataToClients(
             new Sync.Generic.GenericData(Sync.Generic.DataType.ExtraClientStates, [], player.ObjectID, extendedPlayer.GetStates()));
+    }
+
+    private void DestunAllTrackedPlayers()
+    {
+        foreach (Player player in _trackedPlayers)
+        {
+            try
+            {
+                if (player.IsDead || player.IsRemoved) continue;
+
+                ExtendedPlayer ext = player.GetExtension();
+                if (ext.Electrocuted)
+                {
+                    ext.DisableElectrocution();
+                }
+            }
+            catch (NullReferenceException)
+            {
+                // Player was disposed (gibbed) — skip
+            }
+        }
+        _trackedPlayers.Clear();
+        _outOfRadiusPlayerIds.Clear();
     }
 
     private void GenerateLightningBolts(Vector2 center)
@@ -331,7 +368,7 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
 
             _lightningTimer -= ms;
 
-            // Check for players entering the radius (server-side)
+            // Check for players entering/leaving the radius (server-side)
             if (GameOwner != GameOwnerEnum.Client && _lightningTimer > 0f)
             {
                 _radiusCheckTimer -= ms;
@@ -339,6 +376,8 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
                 {
                     _radiusCheckTimer = RadiusCheckInterval;
                     Vector2 center = GetRaisedPosition();
+
+                    // Scan for new players entering radius
                     AABB.Create(out AABB area, center, center, BurstRadius);
                     foreach (ObjectData obj in GameWorld.GetObjectDataByArea(area, false, SFDGameScriptInterface.PhysicsLayer.Active))
                     {
@@ -347,8 +386,54 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
                             float distance = Vector2.Distance(player.Position, center);
                             if (distance <= BurstRadius)
                             {
-                                // Shock for the remaining duration
-                                ElectrocutePlayer(player, _lightningTimer);
+                                ElectrocutePlayer(player);
+                            }
+                        }
+                    }
+
+                    // Check tracked players — cap stun for those who left the radius
+                    for (int i = _trackedPlayers.Count - 1; i >= 0; i--)
+                    {
+                        Player trackedPlayer = _trackedPlayers[i];
+
+                        bool isDead;
+                        bool isRemoved;
+                        try
+                        {
+                            isDead = trackedPlayer.IsDead;
+                            isRemoved = trackedPlayer.IsRemoved;
+                        }
+                        catch (NullReferenceException)
+                        {
+                            // Player was disposed (gibbed) — remove from tracking
+                            _outOfRadiusPlayerIds.Remove(trackedPlayer.ObjectID);
+                            _trackedPlayers.RemoveAt(i);
+                            continue;
+                        }
+
+                        if (isDead || isRemoved)
+                        {
+                            _outOfRadiusPlayerIds.Remove(trackedPlayer.ObjectID);
+                            _trackedPlayers.RemoveAt(i);
+                            continue;
+                        }
+
+                        ExtendedPlayer ext = trackedPlayer.GetExtension();
+                        if (!ext.Electrocuted)
+                        {
+                            _outOfRadiusPlayerIds.Remove(trackedPlayer.ObjectID);
+                            _trackedPlayers.RemoveAt(i);
+                            continue;
+                        }
+
+                        float dist = Vector2.Distance(trackedPlayer.Position, center);
+                        if (dist > BurstRadius && !_outOfRadiusPlayerIds.Contains(trackedPlayer.ObjectID))
+                        {
+                            // Player just left radius — cap stun to 1.5 seconds
+                            _outOfRadiusPlayerIds.Add(trackedPlayer.ObjectID);
+                            if (ext.Time.Electrocution > OutOfRadiusDestunTime)
+                            {
+                                ext.Time.Electrocution = OutOfRadiusDestunTime;
                             }
                         }
                     }
@@ -492,6 +577,11 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
 
     public override void OnDestroyObject()
     {
+        if (GameOwner != GameOwnerEnum.Client)
+        {
+            DestunAllTrackedPlayers();
+        }
+
         if (GameOwner != GameOwnerEnum.Server)
         {
             Vector2 pos = GetWorldPosition();
