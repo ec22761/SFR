@@ -10,11 +10,7 @@ namespace SFR.Projectiles;
 
 internal sealed class ProjectileCannon : ProjectileBazooka
 {
-<<<<<<< HEAD
     private const float _explosionValue = 55;
-=======
-    private const float _explosionValue = 80;
->>>>>>> 81d33bb403256231bc24f77423782d7d598466fe
     private const int _maxPenetrations = 5;
     private float _effectTimer;
     private int _penetrations;
