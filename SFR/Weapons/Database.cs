@@ -9,6 +9,7 @@ using SFR.Weapons.Others;
 using SFR.Weapons.Rifles;
 using SFR.Weapons.Thrown;
 using HandCannon = SFR.Weapons.Rifles.HandCannon;
+using JunkCannon = SFR.Weapons.Rifles.JunkCannon;
 
 namespace SFR.Weapons;
 
@@ -77,7 +78,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Rifle, new AK47()), // 107
             new WeaponItem(WeaponItemType.Rifle, new HandCannon()), // 113
             new WeaponItem(WeaponItemType.Rifle, new TeslaRifle()), // 114
-            new WeaponItem(WeaponItemType.Rifle, new RivetGun()), // 116
+            new WeaponItem(WeaponItemType.Rifle, new JunkCannon()), // 116
 
             // Pickup
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
@@ -226,7 +227,7 @@ internal static class Database
             { 113, 2 }, // Hand Cannon
             { 114, 8 }, // Tesla Rifle
             { 115, 10 }, // Spectrum Analyzer
-            { 116, 8 } // Rivet Gun
+            { 116, 8 } // Junk Cannon
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -349,6 +350,6 @@ internal static class Database
         HandCannon,
         TeslaRifle,
         SpectrumAnalyzer,
-        RivetGun
+        JunkCannon
     }
 }

@@ -2566,9 +2566,9 @@ Tile(WpnMusket)
 		blockFire = false;
 	}
 }
-Tile(WpnRivetGun)
+Tile(WpnJunkCannon)
 {
-	tileTexture = RivetGunM;
+	tileTexture = JunkCannonM;
 	pickupType = instant;
 	pickupRange = 10.0;
 	absorbProjectile = false;

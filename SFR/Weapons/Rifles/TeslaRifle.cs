@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Box2D.XNA;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -23,7 +24,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 {
     // --- Gameplay constants ---
     private const float BeamRange = 999f; // effectively unlimited — clamped to screen edge
-    private const float BeamDamage = 2f;
+    private const float BeamDamage = 1.0f;
     private const float BeamObjectDamage = 9999f; // massive damage — instantly smash through any object
     private const float WindUpDuration = 800f; // ms to fully charge
     private const float WindUpDecay = 400f; // ms to lose charge when not firing
@@ -458,6 +459,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
             Vector2 castOrigin = muzzleWorld;
             float remainingRange = range;
             _beamHitSurface = false;
+            HashSet<int> hitPlayerIds = null;
 
             for (int pierce = 0; pierce < MaxPierceIterations && remainingRange > 1f; pierce++)
             {
@@ -476,7 +478,13 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                 if (hitObj.IsPlayer && hitObj.InternalData is Player hitPlayer &&
                     !hitPlayer.IsDead && !hitPlayer.IsRemoved)
                 {
-                    hitPlayer.TakeMiscDamage(BeamDamage, sourceID: args.Player.ObjectID);
+                    // Only damage each player once per fire tick to prevent
+                    // the piercing loop from multi-hitting the same hitbox.
+                    hitPlayerIds ??= new HashSet<int>();
+                    if (hitPlayerIds.Add(hitPlayer.ObjectID))
+                    {
+                        hitPlayer.TakeMiscDamage(BeamDamage, sourceID: args.Player.ObjectID);
+                    }
 
                     // Pierce through players — continue beam past them.
                     float traveled = Vector2.Distance(castOrigin, ray.EndPosition) + 2f;
@@ -509,23 +517,8 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                 // Hit an indestructible surface — beam stops here.
                 _beamEnd = ray.EndPosition;
                 _beamHitSurface = true;
-
-                // Play material-based smoke/dust effects at final hit point.
-                if (now > _lastHitEffectTime + HitEffectInterval && hitObj.Tile?.Material != null)
-                {
-                    Material mat = hitObj.Tile.Material;
-                    EffectHandler.PlayEffect(mat.Hit.Projectile.HitEffect, ray.EndPosition, args.Player.GameWorld);
-                    SoundHandler.PlaySound(mat.Hit.Projectile.HitSound, ray.EndPosition, args.Player.GameWorld);
-                    _lastHitEffectTime = now;
-                }
-
-                // Strong smoke + spark effects at impact point.
-                if (now > _lastSmokeEffectTime + SmokeEffectInterval)
-                {
-                    EffectHandler.PlayEffect("S_P", ray.EndPosition, args.Player.GameWorld);
-                    EffectHandler.PlayEffect("TR_S", ray.EndPosition, args.Player.GameWorld);
-                    _lastSmokeEffectTime = now;
-                }
+                // Visual effects (smoke, sparks, material hits) are handled
+                // in DrawExtra to avoid doubling up on the host.
                 break;
             }
         }
