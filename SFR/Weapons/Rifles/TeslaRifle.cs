@@ -24,7 +24,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 {
     // --- Gameplay constants ---
     private const float BeamRange = 999f; // effectively unlimited — clamped to screen edge
-    private const float BeamDamage = 1.0f;
+    private const float BeamDamage = 2.0f;
     private const float BeamObjectDamage = 9999f; // massive damage — instantly smash through any object
     private const float WindUpDuration = 800f; // ms to fully charge
     private const float WindUpDecay = 400f; // ms to lose charge when not firing

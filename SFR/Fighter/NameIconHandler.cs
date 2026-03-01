@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SFD;
+using SFR.Weapons.Others;
 
 namespace SFR.Fighter;
 
@@ -44,11 +45,18 @@ internal static class NameIconHandler
         );
     }
 
-    private static void DrawName(Player player, Vector2 vec, float num) =>
+    private static void DrawName(Player player, Vector2 vec, float num)
+    {
+        string displayName = player.Name;
+        if (string.Equals(displayName, "Holly", System.StringComparison.OrdinalIgnoreCase) && player.CurrentPowerupItem is HealthPouch)
+        {
+            displayName = "HEALTH POUCH";
+        }
+
         Constants.DrawString(
             player.m_spriteBatch,
             Constants.Font1Outline,
-            player.Name, new Vector2(vec.X, vec.Y - 0.75f * player.m_nameTextSize.Y * num),
+            displayName, new Vector2(vec.X, vec.Y - 0.75f * player.m_nameTextSize.Y * num),
             player.GetTeamTextColor(),
             0f,
             player.m_nameTextSize * 0.5f,
@@ -56,6 +64,7 @@ internal static class NameIconHandler
             SpriteEffects.None,
             0
         );
+    }
 
     internal static void Draw(Player player, Vector2 vec, float num)
     {

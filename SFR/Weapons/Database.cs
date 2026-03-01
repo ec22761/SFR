@@ -193,7 +193,7 @@ internal static class Database
             { 79, 8 }, //ParryingDagger
             { 80, 6 }, // Poleaxe
             { 81, 15 }, // Rapier
-            { 82, 12 }, // RiotShield,
+            // { 82, 12 }, // RiotShield,
             { 83, 16 }, // Sledgehammer
             { 84, 18 }, // Switchblade
             // { 85, 4 }, // UnkemptHarold
