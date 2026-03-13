@@ -195,6 +195,9 @@ internal static class ObjectsHandler
             case "WPNMIMICMINETHROWN":
                 __result = new ObjectMimicMineThrown(startParams);
                 return false;
+            case "WPNCALTROPTHROWN":
+                __result = new ObjectCaltropThrown(startParams);
+                return false;
             case "FROGGY00":
                 __result = new ObjectFroggy(startParams);
                 return false;

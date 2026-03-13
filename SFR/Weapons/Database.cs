@@ -25,7 +25,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[117];
+        WeaponDatabase.m_weapons = new WeaponItem[118];
 
         Weapons ??=
         [
@@ -63,6 +63,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.Thrown, new StickyBomb()), // 91
             new WeaponItem(WeaponItemType.Thrown, new ShowStopper()), // 111
             new WeaponItem(WeaponItemType.Thrown, new MimicMine()), // 112
+            new WeaponItem(WeaponItemType.Thrown, new Caltrops()), // 117
 
             // Rifle
             new WeaponItem(WeaponItemType.Rifle, new AA12()), // 93
@@ -227,7 +228,8 @@ internal static class Database
             { 113, 2 }, // Hand Cannon
             { 114, 8 }, // Tesla Rifle
             { 115, 10 }, // Spectrum Analyzer
-            { 116, 8 } // Junk Cannon
+            { 116, 8 }, // Junk Cannon
+            { 117, 15 } // Caltrops
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -350,6 +352,7 @@ internal static class Database
         HandCannon,
         TeslaRifle,
         SpectrumAnalyzer,
-        JunkCannon
+        JunkCannon,
+        Caltrops
     }
 }

@@ -3165,6 +3165,47 @@ Tile(WpnTeslaRifle)
 	}
 }
 
+Tile(WpnCaltrops)
+{
+	tileTexture = CaltropsM;
+	pickupType = instant;
+	pickupRange = 10.0;
+	impactSound = ImpactMetal;
+	fixture()
+	{
+		mass = 2 kg;
+		collisionGroup = debris;
+		collisionPoints = (-3, -1.5), (3, -1.5), (3, 1.5), (-3, 1.5);
+		blockFire = false;
+	}
+}
+Tile(WpnCaltropThrown)
+{
+	absorbProjectile = false;
+	projectileHit = false;
+	tileTexture = CaltropT;
+	drawCategory = THRN;
+	mainLayer = 1;
+	editorEnabled = false;
+	material.restitution = 0.1;
+	material.blockExplosions = false;
+	material.hit.melee.sound = MeleeBlock;
+	material.hit.melee.effect = HIT;
+	material.hit.Melee.Prio = 10;
+	material.resistance.impact.modifier = 0.0;
+	kickable = true;
+	punchable = true;
+	impactSound = ImpactMetal;
+	type = Dynamic;
+	fixture()
+	{
+		mass = 1.5 kg;
+		collisionGroup = dynamics_thrown;
+		collisionPoints = (-1.5, -1), (1.5, -1), (1.5, 1), (-1.5, 1);
+		blockFire = false;
+	}
+}
+
 // disable editorEnabled again
 defaultTile(default_tile)
 {

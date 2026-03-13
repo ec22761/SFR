@@ -32,16 +32,16 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
     private const float LaunchSpeed = 18f;
 
     /// <summary>Damage dealt to players hit by a launched object.</summary>
-    private const float LaunchDamagePlayer = 30f;
+    private const float LaunchDamagePlayer = 18f;
 
     /// <summary>Damage dealt to objects hit by a launched object.</summary>
-    private const float LaunchDamageObject = 50f;
+    private const float LaunchDamageObject = 30f;
 
     /// <summary>How long (ms) we track a launched object before giving up.</summary>
     private const float JunkTrackDuration = 2000f;
 
     /// <summary>Radius around launched junk to search for player hits (pixels).</summary>
-    private const float JunkHitRadius = 14f;
+    private const float JunkHitRadius = 8f;
 
     /// <summary>Minimum velocity (Box2D units) for the junk to still deal damage.</summary>
     private const float JunkMinDamageSpeed = 3f;
