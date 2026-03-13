@@ -47,10 +47,10 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
     private const float JunkMinDamageSpeed = 3f;
 
     /// <summary>Maximum AABB dimension (Box2D units) for an object to be vacuumable.</summary>
-    private const float MaxVacuumObjectSize = 0.8f;
+    private const float MaxVacuumObjectSize = 0.6f;
 
     /// <summary>Maximum mass (Box2D units) for an object to be vacuumable.</summary>
-    private const float MaxVacuumObjectMass = 3f;
+    private const float MaxVacuumObjectMass = 1.6f;
 
     /// <summary>Tracks remaining cooldown for the vacuum sound effect.</summary>
     private float _vacuumSoundCooldown;
@@ -452,6 +452,8 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
             }
 
             // Skip objects that are too physically large (boxes, barrels, etc.)
+            // Compute the union AABB across ALL fixtures so multi-fixture bodies
+            // (weapon debris with barrel+grip+stock, etc.) are measured correctly.
             Fixture fixture = obj.Body.GetFixtureList();
             if (fixture == null || fixture.GetShape() == null)
             {
@@ -459,11 +461,22 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
                 continue;
             }
             {
-                Transform xf;
-                obj.Body.GetTransform(out xf);
-                fixture.GetShape().ComputeAABB(out AABB objAabb, ref xf);
-                float w = objAabb.upperBound.X - objAabb.lowerBound.X;
-                float h = objAabb.upperBound.Y - objAabb.lowerBound.Y;
+                obj.Body.GetTransform(out Transform xf);
+                fixture.GetShape().ComputeAABB(out AABB combined, ref xf);
+
+                for (Fixture f = fixture.GetNext(); f != null; f = f.GetNext())
+                {
+                    if (f.GetShape() == null)
+                    {
+                        continue;
+                    }
+
+                    f.GetShape().ComputeAABB(out AABB fAabb, ref xf);
+                    combined.Combine(ref combined, ref fAabb);
+                }
+
+                float w = combined.upperBound.X - combined.lowerBound.X;
+                float h = combined.upperBound.Y - combined.lowerBound.Y;
                 if (Math.Max(w, h) > MaxVacuumObjectSize)
                 {
                     continue;
