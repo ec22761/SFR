@@ -201,6 +201,9 @@ internal static class AnimHandler
                 case SpectrumAnalyzer spectrumAnalyzer:
                     spectrumAnalyzer.OnEffectStart(player);
                     break;
+                case Defib defib:
+                    defib.OnEffectStart(player);
+                    break;
             }
         }
 

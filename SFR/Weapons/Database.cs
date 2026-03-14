@@ -25,7 +25,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[118];
+        WeaponDatabase.m_weapons = new WeaponItem[119];
 
         Weapons ??=
         [
@@ -90,7 +90,8 @@ internal static class Database
             new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()), // 106
 
             // Consumable
-            new WeaponItem(WeaponItemType.Powerup, new SpectrumAnalyzer()) // 115
+            new WeaponItem(WeaponItemType.Powerup, new SpectrumAnalyzer()), // 115
+            new WeaponItem(WeaponItemType.Powerup, new Defib()) // 118
         ];
 
         foreach (WeaponItem weapon in Weapons)
@@ -220,16 +221,17 @@ internal static class Database
             {105, 14 }, // Jetpack editor
             { 106, 10 }, // Gunpack
             { 107, 10 }, // AK47
-            { 108, 8 }, // Scythe
+            // { 108, 8 }, // Scythe
             { 109, 10 }, // Anaconda
-            { 110, 12 }, // Leap boost
+            // { 110, 12 }, // Leap boost
             { 111, 10 }, // Show Stopper
             { 112, 8 }, // Mimic Mine
-            { 113, 2 }, // Hand Cannon
+            { 113, 1 }, // Hand Cannon
             { 114, 8 }, // Tesla Rifle
             { 115, 10 }, // Spectrum Analyzer
             { 116, 8 }, // Junk Cannon
-            { 117, 15 } // Caltrops
+            { 117, 15 }, // Caltrops
+            { 118, 10 } // Defibrillator
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -353,6 +355,7 @@ internal static class Database
         TeslaRifle,
         SpectrumAnalyzer,
         JunkCannon,
-        Caltrops
+        Caltrops,
+        Defib
     }
 }
