@@ -14,7 +14,7 @@ namespace SFR.Weapons.Others;
 
 internal sealed class Defib : PItem
 {
-    private const float DefibRange = 50f;
+    private const float DefibRange = 16.67f;
 
     internal Defib()
     {

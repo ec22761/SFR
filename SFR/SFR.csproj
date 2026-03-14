@@ -98,6 +98,7 @@
     <Compile Include="Fighter\Jetpacks\JetpackState.cs" />
     <Compile Include="Fighter\Jetpacks\JetpackType.cs" />
     <Compile Include="Fighter\NameIconHandler.cs" />
+    <Compile Include="Fighter\ReviveHandler.cs" />
     <Compile Include="Fighter\PlayerHandler.cs" />
     <Compile Include="Fighter\StatusBarHandler.cs" />
     <Compile Include="Game\CommandHandler.cs" />

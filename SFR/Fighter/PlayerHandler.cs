@@ -276,6 +276,9 @@ internal static class PlayerHandler
         {
             extendedPlayer.WasGrounded = __instance.StandingOnGround;
         }
+
+        // Teammate revive: track crouch-over-dead-teammate progress
+        ReviveHandler.Update(__instance, ms);
     }
 
     [HarmonyPrefix]

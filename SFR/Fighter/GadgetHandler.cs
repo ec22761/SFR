@@ -71,6 +71,9 @@ internal static class GadgetHandler
 
         StatusBarHandler.Draw(__instance, vector, num);
 
+        // Draw revive progress circle on dead players being revived
+        ReviveHandler.DrawReviveIndicator(__instance, vector, num);
+
         return false;
     }
 

@@ -5,6 +5,7 @@ using SFD.Objects;
 using SFD.Sounds;
 using SFR.Helper;
 using SFR.Misc;
+using SFR.Fighter;
 using SFR.Sync;
 
 namespace SFR.Game;
@@ -91,5 +92,6 @@ internal static class WorldHandler
     {
         SyncHandler.Attempts.Clear();
         _funnymanTriggered = false;
+        ReviveHandler.Reset();
     }
 }
