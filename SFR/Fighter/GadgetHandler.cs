@@ -95,6 +95,12 @@ internal static class GadgetHandler
             return false;
         }
 
+        if (extendedPlayer.ShrinkBoost)
+        {
+            __result = ColorCorrection.CreateCustom(Globals.ShrinkBoost);
+            return false;
+        }
+
         if (extendedPlayer.Spectral)
         {
             __result = Color.White * 0.1f;

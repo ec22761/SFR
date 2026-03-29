@@ -40,8 +40,8 @@ Short range (flare gun distance), fires a single probe. On hit: brief electrocut
 ### ~~Tesla Rifle~~
 Continuous electric beam (like a short-range Lazer). Arcs to a second nearby enemy for reduced damage. Drains ammo fast. **Implemented.**
 
-### ~~Rivet Gun~~
-Semi-auto, medium damage, but projectiles embed in surfaces. Hitting a surface near an enemy causes a small shrapnel burst after a delay. **Implemented as JunkCannon.**
+### ~~Junk Cannon~~
+Fires random pieces of debris (metal shards, glass, shell casings, wood splinters, etc.) at high velocity. 20 shots, no reload. Each shot spawns a random small physics object from the game's debris pool and launches it. ~10% chance per shot to fire a red explosive gas canister that detonates on impact. Semi-auto, fast fire rate. **Implemented.**
 
 ### Harpoon Gun
 Fires a bolt that pins hit players to the nearest wall/floor behind them for ~1.5 seconds. They can mash to break free faster. One shot, slow reload, 3 total ammo. The ultimate positional punishment weapon — being stuck to a wall while someone walks up to you is terrifying.

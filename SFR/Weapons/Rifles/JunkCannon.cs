@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using Box2D.XNA;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -12,81 +10,55 @@ using SFD.Weapons;
 using SFDGameScriptInterface;
 using SFR.Helper;
 using SFR.Misc;
-using Color = Microsoft.Xna.Framework.Color;
 using Player = SFD.Player;
 using Vector2 = Microsoft.Xna.Framework.Vector2;
 
 namespace SFR.Weapons.Rifles;
 
 /// <summary>
-/// Junk Cannon — a rifle that vacuums up nearby physics objects from behind the player
-/// and launches them at devastating force in the aimed direction. Any dropped weapon,
-/// debris, or dynamic pickup becomes ammunition. If no object is found, it dry-fires.
+/// Junk Cannon — fires random pieces of debris at high velocity. Each shot spawns
+/// a random small object (metal shards, glass, shell casings, wood splinters, etc.)
+/// and launches it. There is a small chance the shot is a red explosive canister
+/// that detonates on impact.
 /// </summary>
 internal sealed class JunkCannon : RWeapon, IExtendedWeapon
 {
-    /// <summary>Maximum distance behind the player to search for objects to vacuum (pixels).</summary>
-    private const float VacuumRadius = 40f;
-
-    /// <summary>Speed at which the vacuumed object is launched.</summary>
     private const float LaunchSpeed = 18f;
-
-    /// <summary>Damage dealt to players hit by a launched object.</summary>
-    private const float LaunchDamagePlayer = 18f;
-
-    /// <summary>Damage dealt to objects hit by a launched object.</summary>
-    private const float LaunchDamageObject = 30f;
-
-    /// <summary>How long (ms) we track a launched object before giving up.</summary>
+    private const float LaunchDamagePlayer = 14f;
+    private const float LaunchDamageObject = 20f;
     private const float JunkTrackDuration = 2000f;
-
-    /// <summary>Radius around launched junk to search for player hits (pixels).</summary>
     private const float JunkHitRadius = 8f;
-
-    /// <summary>Minimum velocity (Box2D units) for the junk to still deal damage.</summary>
     private const float JunkMinDamageSpeed = 3f;
+    private const float ExplosiveChance = 0.1f;
+    private const float ExplosionDamage = 25f;
 
-    /// <summary>Maximum AABB dimension (Box2D units) for an object to be vacuumable.</summary>
-    private const float MaxVacuumObjectSize = 0.6f;
+    private static readonly string[] JunkDebris =
+    [
+        "MetalDebris00A", "MetalDebris00B", "MetalDebris00C", "MetalDebris00D", "MetalDebris00E",
+        "ItemDebrisDark00", "ItemDebrisDark01", "ItemDebrisShiny00", "ItemDebrisShiny01",
+        "GlassShard00A",
+        "WoodDebris00A", "WoodDebris00B", "WoodDebris00C",
+        "ShellSmall", "ShellBig", "ShellShotgun",
+        "KnifeDebris1", "BladeDebris1",
+        "CrumpledPaper00"
+    ];
 
-    /// <summary>Maximum mass (Box2D units) for an object to be vacuumable.</summary>
-    private const float MaxVacuumObjectMass = 1.6f;
-
-    /// <summary>Tracks remaining cooldown for the vacuum sound effect.</summary>
-    private float _vacuumSoundCooldown;
-
-    /// <summary>Timestamp of the last fire for vacuum effect timing.</summary>
-    private float _lastFireTime;
-
-    /// <summary>Active launched junk being tracked for damage.</summary>
-    private readonly List<LaunchedJunk> _trackedJunk = new();
-
-    /// <summary>Particles for the vacuum suck-in visual effect.</summary>
-    private readonly List<VacuumParticle> _vacuumParticles = new();
-
-    /// <summary>Timer for spawning new vacuum particles.</summary>
-    private float _particleSpawnTimer;
-
-    /// <summary>Cooldown for spawning engine smoke effects.</summary>
-    private float _smokeEffectTimer;
-
-    /// <summary>Shared 1x1 white pixel texture for drawing particles.</summary>
-    private static Texture2D _pixelTexture;
+    private readonly List<LaunchedJunk> _trackedJunk = [];
 
     internal JunkCannon()
     {
         RWeaponProperties weaponProperties = new(116, "Junk_Cannon", "WpnJunkCannon", false, WeaponCategory.Primary)
         {
             MaxMagsInWeapon = 1,
-            MaxRoundsInMag = 1,
+            MaxRoundsInMag = 20,
             MaxCarriedSpareMags = 0,
             StartMags = 1,
-            CooldownBeforePostAction = 400,
-            CooldownAfterPostAction = 300,
+            CooldownBeforePostAction = 0,
+            CooldownAfterPostAction = 150,
             ExtraAutomaticCooldown = 0,
             ShellID = string.Empty,
-            AccuracyDeflection = 0.12f,
-            ProjectileID = -1, // No traditional projectile — we handle firing manually
+            AccuracyDeflection = 0.15f,
+            ProjectileID = -1, // No traditional projectile — we spawn debris objects manually
             MuzzlePosition = new Vector2(13f, -2.5f),
             CursorAimOffset = new Vector2(0f, 2.5f),
             LazerPosition = new Vector2(12f, -1.5f),
@@ -131,7 +103,6 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
             AnimToggleThrowingMode = "UpperToggleThrowing"
         };
 
-        // Reuse Rivet Gun textures with renamed references
         weaponVisuals.SetModelTexture("JunkCannonM");
         weaponVisuals.SetDrawnTexture("JunkCannonD");
         weaponVisuals.SetSheathedTexture("JunkCannonS");
@@ -155,166 +126,86 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
 
     public void Update(Player player, float ms, float realMs)
     {
-        if (_vacuumSoundCooldown > 0f)
+        if (player.GameOwner == GameOwnerEnum.Client)
         {
-            _vacuumSoundCooldown -= ms;
+            return;
         }
 
-        // ── Track launched junk and deal damage on impact ──
-        if (player.GameOwner != GameOwnerEnum.Client)
+        for (int i = _trackedJunk.Count - 1; i >= 0; i--)
         {
-            for (int i = _trackedJunk.Count - 1; i >= 0; i--)
+            LaunchedJunk junk = _trackedJunk[i];
+            junk.TimeRemaining -= ms;
+
+            if (junk.TimeRemaining <= 0f || junk.Object.RemovalInitiated || junk.Object.Body == null)
             {
-                LaunchedJunk junk = _trackedJunk[i];
-                junk.TimeRemaining -= ms;
+                _trackedJunk.RemoveAt(i);
+                continue;
+            }
 
-                // Remove if expired or object gone
-                if (junk.TimeRemaining <= 0f || junk.Object.RemovalInitiated || junk.Object.Body == null)
+            float speed = junk.Object.Body.GetLinearVelocity().Length();
+            Vector2 junkWorldPos = Converter.ConvertBox2DToWorld(junk.Object.Body.GetPosition());
+
+            // Explosive canister detonates when it stops (hit a surface)
+            if (junk.IsExplosive && speed < JunkMinDamageSpeed)
+            {
+                _ = player.GameWorld.TriggerExplosion(junkWorldPos, ExplosionDamage, true);
+                _trackedJunk.RemoveAt(i);
+                continue;
+            }
+
+            if (speed < JunkMinDamageSpeed)
+            {
+                _trackedJunk.RemoveAt(i);
+                continue;
+            }
+
+            AABB.Create(out AABB hitArea, junkWorldPos, junkWorldPos, JunkHitRadius);
+
+            bool hitSomething = false;
+            foreach (ObjectData obj in player.GameWorld.GetObjectDataByArea(hitArea, false, PhysicsLayer.Active))
+            {
+                if (obj.InternalData is Player hitPlayer && hitPlayer != player && !hitPlayer.IsDead && !hitPlayer.IsRemoved)
                 {
-                    _trackedJunk.RemoveAt(i);
-                    continue;
-                }
-
-                // Check if the junk is still moving fast enough to damage
-                float speed = junk.Object.Body.GetLinearVelocity().Length();
-                if (speed < JunkMinDamageSpeed)
-                {
-                    _trackedJunk.RemoveAt(i);
-                    continue;
-                }
-
-                // Search for players near the junk object
-                Vector2 junkWorldPos = Converter.ConvertBox2DToWorld(junk.Object.Body.GetPosition());
-                AABB.Create(out AABB hitArea, junkWorldPos, junkWorldPos, JunkHitRadius);
-
-                bool hitSomething = false;
-                foreach (ObjectData obj in player.GameWorld.GetObjectDataByArea(hitArea, false, PhysicsLayer.Active))
-                {
-                    if (obj.InternalData is Player hitPlayer && hitPlayer != player && !hitPlayer.IsDead && !hitPlayer.IsRemoved)
+                    if (junk.IsExplosive)
+                    {
+                        _ = player.GameWorld.TriggerExplosion(junkWorldPos, ExplosionDamage, true);
+                    }
+                    else
                     {
                         hitPlayer.TakeMiscDamage(LaunchDamagePlayer, sourceID: player.ObjectID);
 
-                        // Knockback the hit player
                         Vector2 knockDir = junk.Object.Body.GetLinearVelocity();
                         knockDir.Normalize();
                         hitPlayer.SimulateFallWithSpeed(knockDir * 6f + new Vector2(0f, 3f));
 
-                        // Impact effects
                         SoundHandler.PlaySound("ImpactDefault", junkWorldPos, player.GameWorld);
                         EffectHandler.PlayEffect("BulletHit", junkWorldPos, player.GameWorld);
-
-                        hitSomething = true;
                     }
-                    else if (obj.InternalData is not Player && obj != junk.Object && obj.Destructable)
+
+                    hitSomething = true;
+                    break;
+                }
+                else if (obj.InternalData is not Player && obj != junk.Object && obj.Destructable)
+                {
+                    if (junk.IsExplosive)
                     {
-                        obj.DealScriptDamage((int)LaunchDamageObject, player.ObjectID);
+                        _ = player.GameWorld.TriggerExplosion(junkWorldPos, ExplosionDamage, true);
                         hitSomething = true;
+                        break;
                     }
-                }
 
-                if (hitSomething)
-                {
-                    _trackedJunk.RemoveAt(i);
-                }
-                else
-                {
-                    _trackedJunk[i] = junk;
+                    obj.DealScriptDamage((int)LaunchDamageObject, player.ObjectID);
+                    hitSomething = true;
                 }
             }
-        }
 
-        // ── Update vacuum particles & smoke (client-side visual) ──
-        if (player.GameOwner != GameOwnerEnum.Server)
-        {
-            float now = player.GameWorld.ElapsedTotalGameTime;
-            bool recentlyFired = now - _lastFireTime < 600f;
-
-            // Update existing particles
-            for (int i = _vacuumParticles.Count - 1; i >= 0; i--)
+            if (hitSomething)
             {
-                VacuumParticle p = _vacuumParticles[i];
-                p.Lifetime -= ms;
-                if (p.Lifetime <= 0f)
-                {
-                    _vacuumParticles.RemoveAt(i);
-                    continue;
-                }
-
-                // Move particle toward the target (weapon back)
-                Vector2 dir = p.Target - p.Position;
-                float dist = dir.Length();
-                if (dist > 1f)
-                {
-                    dir.Normalize();
-                    float speed = 0.15f + (1f - p.Lifetime / p.MaxLifetime) * 0.35f;
-                    p.Position = Vector2.Lerp(p.Position, p.Target, speed);
-                }
-
-                _vacuumParticles[i] = p;
+                _trackedJunk.RemoveAt(i);
             }
-
-            // Spawn new particles & effects when firing
-            if (recentlyFired)
+            else
             {
-                // Smoke goes in the exact opposite direction of aim
-                Vector2 aimDir = player.AimVector();
-                if (aimDir.LengthSquared() < 0.01f)
-                {
-                    aimDir = new Vector2(player.LastDirectionX, 0);
-                }
-                aimDir.Normalize();
-                Vector2 backDir = -aimDir;
-
-                float weaponY = player.Crouching ? 8f : 10f;
-                Vector2 weaponCenter = player.Position + new Vector2(0f, weaponY);
-                Vector2 backOfWeapon = weaponCenter + backDir * 4f;
-
-                // Spawn subtle smoke in the opposite aim direction
-                _smokeEffectTimer -= ms;
-                if (_smokeEffectTimer <= 0f)
-                {
-                    _smokeEffectTimer = 150f;
-                    Vector2 smokePos = weaponCenter + backDir * 4f;
-                    EffectHandler.PlayEffect("TR_S", smokePos, player.GameWorld);
-                }
-
-                // Spawn custom particles along the back-aim direction
-                _particleSpawnTimer -= ms;
-                if (_particleSpawnTimer <= 0f)
-                {
-                    _particleSpawnTimer = 40f;
-
-                    // Perpendicular vector for spread
-                    Vector2 perp = new(-backDir.Y, backDir.X);
-
-                    for (int j = 0; j < 2; j++)
-                    {
-                        float spawnDist = Globals.Random.NextFloat(8f, 25f);
-                        float perpSpread = Globals.Random.NextFloat(-6f, 6f);
-                        Vector2 spawnPos = weaponCenter + backDir * spawnDist + perp * perpSpread;
-
-                        float lifetime = Globals.Random.NextFloat(150f, 300f);
-
-                        // Very subtle, transparent smoke wisps
-                        Color color = Globals.Random.Next(4) switch
-                        {
-                            0 => new Color(120, 110, 100, 60),
-                            1 => new Color(80, 80, 80, 50),
-                            2 => new Color(160, 140, 110, 45),
-                            _ => new Color(140, 140, 150, 55)
-                        };
-
-                        _vacuumParticles.Add(new VacuumParticle
-                        {
-                            Position = spawnPos,
-                            Target = backOfWeapon,
-                            Lifetime = lifetime,
-                            MaxLifetime = lifetime,
-                            Color = color,
-                            Size = Globals.Random.NextFloat(1f, 2f)
-                        });
-                    }
-                }
+                _trackedJunk[i] = junk;
             }
         }
     }
@@ -322,36 +213,10 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
     public void GetDealtDamage(Player player, float damage) { }
     public void OnHit(Player player, Player target) { }
     public void OnHitObject(Player player, PlayerHitEventArgs args, ObjectData obj) { }
-
-    public void DrawExtra(SpriteBatch spritebatch, Player player, float ms)
-    {
-        if (player.GameOwner == GameOwnerEnum.Server || _vacuumParticles.Count == 0)
-        {
-            return;
-        }
-
-        EnsurePixelTexture(spritebatch);
-
-        foreach (VacuumParticle p in _vacuumParticles)
-        {
-            float alpha = Math.Min(1f, p.Lifetime / p.MaxLifetime * 2f);
-            Color drawColor = p.Color * alpha;
-
-            Vector2 screenPos = WorldToScreen(p.Position);
-            float size = p.Size * Camera.ZoomUpscaled;
-
-            spritebatch.Draw(_pixelTexture, screenPos, null, drawColor, 0f,
-                new Vector2(0.5f, 0.5f), size, SpriteEffects.None, 0f);
-        }
-    }
+    public void DrawExtra(SpriteBatch spritebatch, Player player, float ms) { }
 
     // ── Core firing mechanic ─────────────────────────────────────
 
-    /// <summary>
-    /// Intercepts the fire event. Instead of spawning a projectile, we find a nearby
-    /// dynamic physics object behind the player, teleport it to the muzzle, and launch
-    /// it at high speed in the aimed direction.
-    /// </summary>
     public override void BeforeCreateProjectile(BeforeCreateProjectileArgs args)
     {
         args.Handled = true;
@@ -364,18 +229,6 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
             return;
         }
 
-        // Search area behind the player for a suckable object
-        ObjectData target = FindVacuumTarget(player);
-
-        if (target == null)
-        {
-            // No junk to vacuum — dry fire
-            SoundHandler.PlaySound("OutOfAmmoHeavy", player.Position, player.GameWorld);
-            args.FireResult = false;
-            return;
-        }
-
-        // Calculate launch direction from aim
         Vector2 launchDir = args.Direction;
         if (launchDir == Vector2.Zero)
         {
@@ -384,20 +237,24 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
 
         launchDir.Normalize();
 
-        // Teleport the object to the muzzle position and launch it
-        Vector2 muzzleWorld = args.WorldPosition;
-        target.Body.SetTransform(Converter.WorldToBox2D(muzzleWorld), target.Body.GetAngle());
-        target.Body.SetLinearVelocity(launchDir * LaunchSpeed);
-        target.Body.SetAngularVelocity(Globals.Random.NextFloat(-15f, 15f));
+        // Pick random junk — small chance for an explosive canister
+        bool isExplosive = Globals.Random.NextFloat() < ExplosiveChance;
+        string tileName = isExplosive ? "Gascan00" : JunkDebris[Globals.Random.Next(JunkDebris.Length)];
 
-        // Track for damage
+        Vector2 muzzleWorld = args.WorldPosition;
+
+        // Spawn the debris object at the muzzle and launch it
+        ObjectData junkData = player.GameWorld.IDCounter.NextObjectData(tileName);
+        _ = player.GameWorld.CreateTile(new SpawnObjectInformation(
+            junkData, muzzleWorld, 0f, (short)player.LastDirectionX,
+            launchDir * LaunchSpeed, Globals.Random.NextFloat(-15f, 15f)));
+
         _trackedJunk.Add(new LaunchedJunk
         {
-            Object = target,
+            Object = junkData,
+            IsExplosive = isExplosive,
             TimeRemaining = JunkTrackDuration
         });
-
-        _lastFireTime = player.GameWorld.ElapsedTotalGameTime;
 
         // Effects
         SoundHandler.PlaySound("GLFire", player.Position, player.GameWorld);
@@ -408,108 +265,7 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
         args.FireResult = true;
     }
 
-    /// <summary>
-    /// Finds the best dynamic object to vacuum up. Searches in a cone/area behind the player.
-    /// Prioritizes the closest valid object.
-    /// </summary>
-    private static ObjectData FindVacuumTarget(Player player)
-    {
-        // The "behind" direction is opposite to the player's facing
-        int behindDir = -player.LastDirectionX;
-        Vector2 playerPos = player.Position;
-
-        // Create a search area centered slightly behind the player
-        Vector2 searchCenter = playerPos + new Vector2(behindDir * VacuumRadius * 0.5f, 0f);
-        AABB.Create(out AABB area, searchCenter, searchCenter, VacuumRadius);
-
-        ObjectData bestTarget = null;
-        float bestDistance = float.MaxValue;
-
-        foreach (ObjectData obj in player.GameWorld.GetObjectDataByArea(area, false, PhysicsLayer.Active))
-        {
-            // Skip players
-            if (obj.InternalData is Player)
-            {
-                continue;
-            }
-
-            // Skip removed or static objects
-            if (obj.RemovalInitiated || obj.IsStatic)
-            {
-                continue;
-            }
-
-            // Must have a physics body we can move
-            if (obj.Body == null)
-            {
-                continue;
-            }
-
-            // Skip objects that are too heavy
-            if (obj.Body.GetMass() > MaxVacuumObjectMass)
-            {
-                continue;
-            }
-
-            // Skip objects that are too physically large (boxes, barrels, etc.)
-            // Compute the union AABB across ALL fixtures so multi-fixture bodies
-            // (weapon debris with barrel+grip+stock, etc.) are measured correctly.
-            Fixture fixture = obj.Body.GetFixtureList();
-            if (fixture == null || fixture.GetShape() == null)
-            {
-                // Can't determine size — skip to be safe
-                continue;
-            }
-            {
-                obj.Body.GetTransform(out Transform xf);
-                fixture.GetShape().ComputeAABB(out AABB combined, ref xf);
-
-                for (Fixture f = fixture.GetNext(); f != null; f = f.GetNext())
-                {
-                    if (f.GetShape() == null)
-                    {
-                        continue;
-                    }
-
-                    f.GetShape().ComputeAABB(out AABB fAabb, ref xf);
-                    combined.Combine(ref combined, ref fAabb);
-                }
-
-                float w = combined.upperBound.X - combined.lowerBound.X;
-                float h = combined.upperBound.Y - combined.lowerBound.Y;
-                if (Math.Max(w, h) > MaxVacuumObjectSize)
-                {
-                    continue;
-                }
-            }
-
-            // Object must actually be behind the player (or at least close to center)
-            Vector2 objWorldPos = Converter.ConvertBox2DToWorld(obj.Body.GetPosition());
-            float relativeX = (objWorldPos.X - playerPos.X) * behindDir;
-
-            // Object should be behind or roughly at the player, not far in front
-            if (relativeX < -10f)
-            {
-                continue;
-            }
-
-            float distance = Vector2.Distance(objWorldPos, playerPos);
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                bestTarget = obj;
-            }
-        }
-
-        return bestTarget;
-    }
-
     // ── Standard weapon callbacks ────────────────────────────────
-
-    public override void ConsumeAmmoFromFire(Player player)
-    {
-        // Junk Cannon doesn't consume ammo — it uses physics objects as ammunition.
-    }
 
     public override void OnRecoilEvent(Player player)
     {
@@ -567,39 +323,12 @@ internal sealed class JunkCannon : RWeapon, IExtendedWeapon
         return base.GetDrawnTexture(ref args);
     }
 
-    // ── Helpers ───────────────────────────────────────────────────
-
-    private static void EnsurePixelTexture(SpriteBatch spriteBatch)
-    {
-        if (_pixelTexture is null)
-        {
-            _pixelTexture = new Texture2D(spriteBatch.GraphicsDevice, 1, 1);
-            _pixelTexture.SetData(new[] { Color.White });
-        }
-    }
-
-    private static Vector2 WorldToScreen(Vector2 worldPos)
-    {
-        Vector2 pos = new(Converter.WorldToBox2D(worldPos.X), Converter.WorldToBox2D(worldPos.Y));
-        Camera.ConvertBox2DToScreen(ref pos, out pos);
-        return pos;
-    }
-
     // ── Inner types ──────────────────────────────────────────────
 
     private struct LaunchedJunk
     {
         internal ObjectData Object;
+        internal bool IsExplosive;
         internal float TimeRemaining;
-    }
-
-    private struct VacuumParticle
-    {
-        internal Vector2 Position;
-        internal Vector2 Target;
-        internal float Lifetime;
-        internal float MaxLifetime;
-        internal Color Color;
-        internal float Size;
     }
 }

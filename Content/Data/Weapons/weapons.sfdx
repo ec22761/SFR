@@ -1348,6 +1348,18 @@ Tile(ItemLeapBoost)
 		blockFire = false;
 	}
 }
+Tile(ItemShrinkBoost)
+{
+	tileTexture = ShrinkBoost;
+	pickupType = instant;
+	pickupRange = 10.0;
+	fixture()
+	{
+		mass = 5 kg;
+		collisionPoints = (-4.5, -0.5), (0.5, -0.5), (4.5, 0.5), (0.5, 1.5), (-4.5, 1.5);
+		blockFire = false;
+	}
+}
 Tile(ItemSpectrumAnalyzer)
 {
 	tileTexture = SpectrumAnalyzer;

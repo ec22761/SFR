@@ -204,6 +204,9 @@ internal static class AnimHandler
                 case Defib defib:
                     defib.OnEffectStart(player);
                     break;
+                case ShrinkBoost shrinkBoost:
+                    shrinkBoost.OnEffectStart(player);
+                    break;
             }
         }
 

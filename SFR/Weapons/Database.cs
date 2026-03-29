@@ -25,7 +25,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[119];
+        WeaponDatabase.m_weapons = new WeaponItem[120];
 
         Weapons ??=
         [
@@ -91,7 +91,8 @@ internal static class Database
 
             // Consumable
             new WeaponItem(WeaponItemType.Powerup, new SpectrumAnalyzer()), // 115
-            new WeaponItem(WeaponItemType.Powerup, new Defib()) // 118
+            new WeaponItem(WeaponItemType.Powerup, new Defib()), // 118
+            new WeaponItem(WeaponItemType.Powerup, new ShrinkBoost()) // 119
         ];
 
         foreach (WeaponItem weapon in Weapons)
@@ -232,6 +233,7 @@ internal static class Database
             { 116, 8 }, // Junk Cannon
             { 117, 15 }, // Caltrops
             // { 118, 10 } // Defibrillator
+            { 119, 10 }, // Shrink Boost
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -356,6 +358,7 @@ internal static class Database
         SpectrumAnalyzer,
         JunkCannon,
         Caltrops,
-        Defib
+        Defib,
+        ShrinkBoost
     }
 }

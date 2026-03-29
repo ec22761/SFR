@@ -274,6 +274,20 @@ internal static class SyncHandler
                     }
                 }
 
+                if (data.Args.Length > 8)
+                {
+                    bool shrinkBoost = (bool)data.Args[8];
+                    if (!extendedPlayer.ShrinkBoost && shrinkBoost)
+                    {
+                        extendedPlayer.ShrinkBoost = true;
+                        extendedPlayer.Time.ShrinkBoost = ExtendedPlayer.TimeSequence.ShrinkBoostTime;
+                    }
+                    else if (extendedPlayer.ShrinkBoost && !shrinkBoost)
+                    {
+                        extendedPlayer.ShrinkBoost = false;
+                    }
+                }
+
                 break;
         }
     }

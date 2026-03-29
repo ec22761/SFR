@@ -10,6 +10,7 @@ internal static class Globals
     internal static readonly Random Random = new();
     internal static readonly Color RageBoost = new(210, 130, 50);
     internal static readonly Color LeapBoost = new(50, 210, 80);
+    internal static readonly Color ShrinkBoost = new(80, 180, 210);
     internal static bool QuickStart = false;
     internal static string DebugMap = string.Empty;
     internal static bool IsDev => SFRVersion.EndsWith("_dev");

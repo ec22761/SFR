@@ -5,7 +5,10 @@ using SFD;
 using SFD.Effects;
 using SFD.Sounds;
 using SFR.Helper;
+using Color = Microsoft.Xna.Framework.Color;
+using MathHelper = Microsoft.Xna.Framework.MathHelper;
 using Player = SFD.Player;
+using PlayerInputMode = SFDGameScriptInterface.PlayerInputMode;
 using Vector2 = Microsoft.Xna.Framework.Vector2;
 
 namespace SFR.Fighter;
@@ -13,12 +16,14 @@ namespace SFR.Fighter;
 /// <summary>
 ///     Handles teammate revive mechanic: crouching over a dead teammate
 ///     for 5 seconds revives them. Only works for players on the same team.
-///     A pixel-art circle indicator shows the revive progress.
+///     The reviver's input is locked during the channel, and taking damage
+///     interrupts the revive. A pixel-art circle indicator shows progress.
 /// </summary>
 internal static class ReviveHandler
 {
     private const float ReviveTime = 5000f; // 5 seconds in ms
     private const float ReviveRange = 14f;
+    private const float SoundInterval = 500f; // ms between looping sound ticks
     private const int CircleSegments = 12;
     private const float CircleRadius = 8f;
 
@@ -28,6 +33,8 @@ internal static class ReviveHandler
     {
         internal Player Target;
         internal float Progress;
+        internal float LastHealth;
+        internal float SoundTimer;
     }
 
     /// <summary>
@@ -38,7 +45,7 @@ internal static class ReviveHandler
     {
         if (player.IsDead || player.IsRemoved)
         {
-            _activeRevives.Remove(player.ObjectID);
+            CancelRevive(player);
             return;
         }
 
@@ -47,7 +54,7 @@ internal static class ReviveHandler
         // Must be crouching to revive
         if (!player.Crouching)
         {
-            _activeRevives.Remove(id);
+            CancelRevive(player);
             return;
         }
 
@@ -55,14 +62,22 @@ internal static class ReviveHandler
         Player target = FindClosestDeadTeammate(player);
         if (target == null)
         {
-            _activeRevives.Remove(id);
+            CancelRevive(player);
             return;
         }
 
+        bool isNew = false;
         if (!_activeRevives.TryGetValue(id, out ReviveState state))
         {
-            state = new ReviveState { Target = target, Progress = 0f };
+            state = new ReviveState
+            {
+                Target = target,
+                Progress = 0f,
+                LastHealth = player.Health.CurrentValue,
+                SoundTimer = 0f
+            };
             _activeRevives[id] = state;
+            isNew = true;
         }
 
         // Reset progress if target changed
@@ -70,9 +85,29 @@ internal static class ReviveHandler
         {
             state.Target = target;
             state.Progress = 0f;
+            state.LastHealth = player.Health.CurrentValue;
+            state.SoundTimer = 0f;
+            isNew = true;
         }
 
+        // Interrupt if the reviver took damage
+        if (player.Health.CurrentValue < state.LastHealth)
+        {
+            CancelRevive(player);
+            return;
+        }
+
+        state.LastHealth = player.Health.CurrentValue;
+
         state.Progress += ms;
+
+        // Looping sound tick
+        state.SoundTimer += ms;
+        if (state.SoundTimer >= SoundInterval)
+        {
+            state.SoundTimer -= SoundInterval;
+            SoundHandler.PlaySound("GetSlomo", player.Position, player.GameWorld);
+        }
 
         if (state.Progress >= ReviveTime)
         {
@@ -86,8 +121,13 @@ internal static class ReviveHandler
                 EffectHandler.PlayEffect("CAM_S", Vector2.Zero, player.GameWorld, 0.5f, 150f, false);
             }
 
-            _activeRevives.Remove(id);
+            _activeRevives.Remove(player.ObjectID);
         }
+    }
+
+    private static void CancelRevive(Player player)
+    {
+        _activeRevives.Remove(player.ObjectID);
     }
 
     private static Player FindClosestDeadTeammate(Player player)

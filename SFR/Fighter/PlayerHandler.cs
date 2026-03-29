@@ -509,6 +509,15 @@ internal static class PlayerHandler
                 extendedPlayer.DisableSpectral();
             }
         }
+
+        if (extendedPlayer.ShrinkBoost)
+        {
+            extendedPlayer.Time.ShrinkBoost -= ms;
+            if (!extendedPlayer.ShrinkBoost || player.IsDead)
+            {
+                extendedPlayer.DisableShrinkBoost();
+            }
+        }
     }
 
     /// <summary>
