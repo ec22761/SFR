@@ -17,6 +17,7 @@ namespace SFR.Game;
 internal static class WorldHandler
 {
     private static bool _funnymanTriggered;
+    private static float _funnymanStartTime = -1f;
     [HarmonyPostfix]
     [HarmonyPatch(typeof(ObjectDestructible), nameof(ObjectDestructible.OnDestroyObject))]
     private static void DestroyObject(ObjectDestructible __instance)
@@ -76,10 +77,21 @@ internal static class WorldHandler
             var names = alivePlayers.Select(p => p.Name).OrderBy(n => n).ToList();
             if (names.Count == 2 && names[0] == "Holly" && names[1] == "Luke")
             {
-                MusicHandler.PlayTrack((MusicHandler.MusicTrackID)16, true, 1000f);
-                _funnymanTriggered = true;
+                if (_funnymanStartTime < 0f)
+                {
+                    _funnymanStartTime = __instance.ElapsedTotalGameTime;
+                }
+                else if (__instance.ElapsedTotalGameTime - _funnymanStartTime >= 20000f)
+                {
+                    MusicHandler.PlayTrack((MusicHandler.MusicTrackID)16, true, 1000f);
+                    _funnymanTriggered = true;
+                }
+
+                return;
             }
         }
+
+        _funnymanStartTime = -1f;
     }
 
     /// <summary>
@@ -92,6 +104,7 @@ internal static class WorldHandler
     {
         SyncHandler.Attempts.Clear();
         _funnymanTriggered = false;
+        _funnymanStartTime = -1f;
         ReviveHandler.Reset();
     }
 }
