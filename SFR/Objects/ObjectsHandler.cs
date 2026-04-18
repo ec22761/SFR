@@ -207,6 +207,28 @@ internal static class ObjectsHandler
             case "PROJECTILESTICKY":
                 __result = new ObjectStickyProjectile(startParams);
                 return false;
+
+            // Crushing debris: any of these debris pieces will damage players they slam into.
+            case "WOODDEBRIS00A":
+            case "WOODDEBRIS00B":
+            case "WOODDEBRIS00C":
+            case "WOODDEBRIS00D":
+            case "WOODDEBRIS00E":
+            case "WOODDEBRISTABLE00A":
+            case "WOODDEBRISTABLE00B":
+            case "WOODBARRELDEBRIS00A":
+            case "WOODBARRELDEBRIS00B":
+            case "WOODBARRELDEBRIS00C":
+            case "STONEDEBRIS00A":
+            case "STONEDEBRIS00B":
+            case "STONEDEBRIS00C":
+            case "STONEDEBRIS00D":
+            case "STONEDEBRIS00E":
+            case "MARBLESTATUEDEBRIS00A":
+            case "MARBLESTATUEDEBRIS00B":
+            case "MARBLESTATUEDEBRIS00C":
+                __result = new ObjectCrushingDebris(startParams);
+                return false;
         }
 
         return true;
