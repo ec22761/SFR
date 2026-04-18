@@ -232,7 +232,7 @@ internal static class Database
             { 115, 10 }, // Spectrum Analyzer
             { 116, 4 }, // Junk Cannon
             { 117, 15 }, // Caltrops
-            // { 118, 10 } // Defibrillator
+            { 118, 10 }, // Defibrillator
             { 119, 10 }, // Shrink Boost
         };
 

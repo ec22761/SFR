@@ -47,6 +47,21 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private const float PlasmaEffectInterval = 30f; // ms between plasma particle spawns
     private const float SmokeEffectInterval = 60f; // ms between smoke effects at hit point
 
+    // --- Player impact constants ---
+    private const float BeamPushForceX = 4.5f;   // horizontal shove along beam direction
+    private const float BeamPushForceY = 1.5f;   // small upward lift
+    private const float BeamPushMaxSpeedX = 7f;  // cap so continuous beam doesn't launch player to escape velocity
+
+    // Burn buildup meter: each beam hit on a player increments their buildup;
+    // when no longer hit, the buildup decays. Crossing the first threshold
+    // ignites them (regular fire); crossing the second sets them ablaze in
+    // an inferno ("double fire").
+    private const float BurnBuildupPerHit = 1f;        // added each fire tick the beam touches the player
+    private const float BurnBuildupDecayPerMs = 0.005f; // lost per ms when no longer hit
+    private const float BurnBuildupFireThreshold = 12f;     // ~0.6s of continuous beam
+    private const float BurnBuildupInfernoThreshold = 30f;  // ~1.5s of continuous beam
+    private const float BurnBuildupMax = 45f;               // hard cap so it can't grow indefinitely
+
     // --- Beam electric arc constants (showstopper-style arcs along the beam) ---
     private const int MaxBeamArcs = 8;
     private const float ArcSpawnInterval = 80f;   // ms between new arc spawns along the beam
@@ -66,6 +81,13 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private float _lastSparkEffectTime; // throttle spark effects at beam hit
     private float _lastPlasmaEffectTime; // throttle plasma particle draws
     private float _lastSmokeEffectTime; // throttle smoke puff effects
+
+    // Per-player burn buildup meter (player ObjectID → buildup units).
+    // Tracked on the host only.
+    private readonly Dictionary<int, float> _burnBuildup = new();
+    // Players whose buildup was incremented during the current fire tick —
+    // used so Update() only decays players that weren't hit this frame.
+    private readonly HashSet<int> _hitThisTick = new();
 
     // Beam electric arc state
     private readonly BeamArc[] _beamArcs = new BeamArc[MaxBeamArcs];
@@ -191,6 +213,35 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                 _playedWindDown = true;
             }
         }
+
+        // Apply burn-buildup decay on the host. Players hit this tick keep their
+        // buildup (incremented in BeforeCreateProjectile); everyone else decays.
+        if (_burnBuildup.Count > 0 && player.GameOwner != GameOwnerEnum.Client)
+        {
+            List<int> toRemove = null;
+            foreach (int id in new List<int>(_burnBuildup.Keys))
+            {
+                if (_hitThisTick.Contains(id)) continue;
+
+                float v = _burnBuildup[id] - ms * BurnBuildupDecayPerMs;
+                if (v <= 0f)
+                {
+                    (toRemove ??= new List<int>()).Add(id);
+                }
+                else
+                {
+                    _burnBuildup[id] = v;
+                }
+            }
+            if (toRemove != null)
+            {
+                foreach (int id in toRemove)
+                {
+                    _burnBuildup.Remove(id);
+                }
+            }
+        }
+        _hitThisTick.Clear();
 
         // Continue playing the spin sound only while still actively firing.
         // Stop the loop once the player hasn't fired for > 120ms.
@@ -452,10 +503,14 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 
         if (args.Player.GameOwner != GameOwnerEnum.Client)
         {
-            // Server/host: piercing damage raycast — beam smashes through all objects.
+            // Server/host: piercing damage raycast — beam smashes through all
+            // solid objects. Uses the same collision filter as the visual beam
+            // (no cloud-passable fixtures) so damage and visuals stay in sync at
+            // every aim angle.
             Vector2 castOrigin = muzzleWorld;
             float remainingRange = range;
             HashSet<int> hitPlayerIds = null;
+            HashSet<int> hitObjectIds = null;
 
             for (int pierce = 0; pierce < MaxPierceIterations && remainingRange > 1f; pierce++)
             {
@@ -480,6 +535,45 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                     if (hitPlayerIds.Add(hitPlayer.ObjectID))
                     {
                         hitPlayer.TakeMiscDamage(BeamDamage, sourceID: args.Player.ObjectID);
+
+                        // Knock the player back along the beam direction. Apply
+                        // through WorldBody (the underlying Box2D body) and refresh
+                        // the player's cached pre-physics velocity so the engine
+                        // doesn't immediately overwrite our push next physics step.
+                        if (hitPlayer.WorldBody != null)
+                        {
+                            Vector2 vel = hitPlayer.WorldBody.GetLinearVelocity();
+                            float pushX = aimDir.X * BeamPushForceX;
+                            // Add the push but clamp horizontal speed so continuous
+                            // beam doesn't accelerate the player off the map.
+                            vel.X = Math.Sign(pushX) != 0
+                                ? MathHelper.Clamp(vel.X + pushX, -BeamPushMaxSpeedX, BeamPushMaxSpeedX)
+                                : vel.X;
+                            // Always nudge upward a little so the push feels real
+                            // even while the target is grounded.
+                            if (vel.Y < BeamPushForceY) vel.Y = BeamPushForceY;
+                            hitPlayer.WorldBody.SetLinearVelocity(vel);
+                            hitPlayer.m_preBox2DLinearVelocity = vel;
+                            hitPlayer.AirControlBaseVelocity = vel;
+                            hitPlayer.ForceServerPositionState();
+                            hitPlayer.ImportantUpdate = true;
+                        }
+
+                        // Increment the burn buildup meter and check thresholds.
+                        _hitThisTick.Add(hitPlayer.ObjectID);
+                        _burnBuildup.TryGetValue(hitPlayer.ObjectID, out float buildup);
+                        buildup = Math.Min(BurnBuildupMax, buildup + BurnBuildupPerHit);
+                        _burnBuildup[hitPlayer.ObjectID] = buildup;
+
+                        if (buildup >= BurnBuildupFireThreshold && !hitPlayer.Burning)
+                        {
+                            hitPlayer.ObjectData?.SetMaxFire();
+                        }
+                        if (buildup >= BurnBuildupInfernoThreshold && !hitPlayer.BurningInferno)
+                        {
+                            hitPlayer.BurningInferno = true;
+                            hitPlayer.ObjectData?.SetMaxFire();
+                        }
                     }
 
                     // Pierce through players — continue beam past them.
@@ -490,17 +584,61 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                 }
 
                 // Non-player object hit.
+                if (hitObj is ObjectExplosive or ObjectBarrelExplosive)
+                {
+                    // Detonate explosive barrels / oil canisters / small explosive
+                    // crates. We use both the explicit Exploding property (the same
+                    // path the sledgehammer's heavy attack uses for big barrels) AND
+                    // a massive script-damage hit so smaller explosives that don't
+                    // honor that property still die and trigger their explosion.
+                    hitObjectIds ??= new HashSet<int>();
+                    if (hitObjectIds.Add(hitObj.ObjectID))
+                    {
+                        try
+                        {
+                            ((ObjectDestructible)hitObj).Properties.Get(ObjectPropertyID.BarrelExplosive_Exploding).Value = true;
+                        }
+                        catch
+                        {
+                            // Property may not be present on every explosive variant.
+                        }
+                        if (hitObj is ObjectExplosive explosive)
+                        {
+                            explosive.time = 80f;
+                        }
+                        else if (hitObj is ObjectBarrelExplosive barrel)
+                        {
+                            barrel.time = 80f;
+                        }
+
+                        // Fallback: deal massive damage so any explosive that doesn't
+                        // respond to the property still gets destroyed and triggers
+                        // its on-destroy explosion.
+                        hitObj.DealScriptDamage((int)BeamObjectDamage, args.Player.ObjectID);
+                    }
+
+                    // Pierce through — continue beam past the now-detonating object.
+                    float traveledExp = Vector2.Distance(castOrigin, ray.EndPosition) + 2f;
+                    castOrigin = ray.EndPosition + aimDir * 2f;
+                    remainingRange -= traveledExp;
+                    continue;
+                }
+
                 if (hitObj.Destructable)
                 {
-                    // Obliterate the object instantly.
-                    hitObj.DealScriptDamage((int)BeamObjectDamage, args.Player.ObjectID);
-
-                    // Play material destruction effects at each smashed object.
-                    if (hitObj.Tile?.Material != null)
+                    hitObjectIds ??= new HashSet<int>();
+                    if (hitObjectIds.Add(hitObj.ObjectID))
                     {
-                        Material mat = hitObj.Tile.Material;
-                        EffectHandler.PlayEffect(mat.Hit.Projectile.HitEffect, ray.EndPosition, args.Player.GameWorld);
-                        SoundHandler.PlaySound(mat.Hit.Projectile.HitSound, ray.EndPosition, args.Player.GameWorld);
+                        // Obliterate the object instantly.
+                        hitObj.DealScriptDamage((int)BeamObjectDamage, args.Player.ObjectID);
+
+                        // Play material destruction effects at each smashed object.
+                        if (hitObj.Tile?.Material != null)
+                        {
+                            Material mat = hitObj.Tile.Material;
+                            EffectHandler.PlayEffect(mat.Hit.Projectile.HitEffect, ray.EndPosition, args.Player.GameWorld);
+                            SoundHandler.PlaySound(mat.Hit.Projectile.HitSound, ray.EndPosition, args.Player.GameWorld);
+                        }
                     }
 
                     // Pierce through — continue beam past the destroyed object.
@@ -516,6 +654,14 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                 // in DrawExtra to avoid doubling up on the host.
                 break;
             }
+
+            // Separate, non-blocking pass that damages cloud-passable
+            // destructibles (e.g. chain links) along the beam path — these are
+            // skipped by the main filter so they don't interfere with hits on
+            // big boxes or players, but bullets normally break them so the beam
+            // should too.
+            BreakCloudDestructiblesAlongBeam(args.Player, muzzleWorld, aimDir,
+                Vector2.Distance(muzzleWorld, _beamEnd) + 4f, hitObjectIds);
         }
         else
         {
@@ -630,8 +776,73 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     }
 
     /// <summary>
+    ///     Permissive damage-scan filter — catches every destructible / explosive
+    ///     object regardless of cloud/category, but never indestructible terrain.
+    ///     Used by a secondary sweep that breaks small barrels, chain links and
+    ///     other "thin" destructibles the main beam (LazerRayCastCollision) skips.
+    /// </summary>
+    private static bool DestructibleSweepCollision(Fixture fixture)
+    {
+        ObjectData objectData = ObjectData.Read(fixture);
+        return objectData is { IsPlayer: false, Destructable: true };
+    }
+
+    /// <summary>
+    ///     Sweeps along the beam and damages / detonates every destructible
+    ///     object it meets that the main beam didn't already handle (chain
+    ///     links, small explosive barrels, glass, etc.). Does not affect the
+    ///     main beam endpoint.
+    /// </summary>
+    private void BreakCloudDestructiblesAlongBeam(Player owner, Vector2 origin,
+        Vector2 dir, float maxDistance, HashSet<int> alreadyDamagedIds)
+    {
+        Vector2 castOrigin = origin;
+        float remaining = maxDistance;
+
+        for (int i = 0; i < MaxPierceIterations && remaining > 1f; i++)
+        {
+            GameWorld.RayCastResult ray = owner.GameWorld.RayCast(
+                castOrigin, dir, 0f, remaining, DestructibleSweepCollision, _ => true);
+
+            if (ray.EndFixture is null) return;
+
+            ObjectData hitObj = ObjectData.Read(ray.EndFixture);
+            if (hitObj == null) return;
+
+            if (alreadyDamagedIds == null || alreadyDamagedIds.Add(hitObj.ObjectID))
+            {
+                if (hitObj is ObjectExplosive or ObjectBarrelExplosive)
+                {
+                    try
+                    {
+                        ((ObjectDestructible)hitObj).Properties.Get(ObjectPropertyID.BarrelExplosive_Exploding).Value = true;
+                    }
+                    catch
+                    {
+                        // Property may not be present on every explosive variant.
+                    }
+                    if (hitObj is ObjectExplosive explosive)
+                    {
+                        explosive.time = 80f;
+                    }
+                    else if (hitObj is ObjectBarrelExplosive barrel)
+                    {
+                        barrel.time = 80f;
+                    }
+                }
+
+                hitObj.DealScriptDamage((int)BeamObjectDamage, owner.ObjectID);
+            }
+
+            float traveled = Vector2.Distance(castOrigin, ray.EndPosition) + 2f;
+            castOrigin = ray.EndPosition + dir * 2f;
+            remaining -= traveled;
+        }
+    }
+
+    /// <summary>
     ///     RayCast collision filter — same logic as the claymore laser: collide with
-    ///     solid fixtures and players.
+    ///     solid fixtures and players. Used for the visual beam endpoint.
     /// </summary>
     private static bool LazerRayCastCollision(Fixture fixture)
     {
