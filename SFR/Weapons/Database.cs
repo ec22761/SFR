@@ -124,7 +124,7 @@ internal static class Database
             { 6, 5 }, // M60
             // 7, Fists
             { 8, 20 }, // Machete
-            { 9, 5 }, // Sniper
+            { 9, 7 }, // Sniper
             { 10, 12 }, // SawedOff shotgun
             { 11, 25 }, // Bat
             { 12, 25 }, // Uzi
@@ -132,7 +132,7 @@ internal static class Database
             { 14, 20 }, // Medkit
             { 15, 15 }, // Slowmo 5
             { 16, 5 }, // Slowmo 10
-            { 17, 5 }, // Bazooka
+            { 17, 6 }, // Bazooka
             { 18, 10 }, // Axe
             { 19, 15 }, // Assault rifle
             { 20, 25 }, // Grenades
@@ -143,7 +143,7 @@ internal static class Database
             { 26, 10 }, // Flamethrower
             { 27, 10 }, // Flaregun
             { 28, 30 }, // Revolver
-            { 29, 5 }, // GrenadeLauncher
+            { 29, 6 }, // GrenadeLauncher
             { 30, 12 }, // SMG
             { 31, 20 }, // Hammer
             // 32, Chair
@@ -230,7 +230,7 @@ internal static class Database
             { 113, 1 }, // Hand Cannon
             { 114, 8 }, // Tesla Rifle
             { 115, 10 }, // Spectrum Analyzer
-            { 116, 8 }, // Junk Cannon
+            { 116, 4 }, // Junk Cannon
             { 117, 15 }, // Caltrops
             // { 118, 10 } // Defibrillator
             { 119, 10 }, // Shrink Boost
