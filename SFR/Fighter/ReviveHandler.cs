@@ -66,7 +66,6 @@ internal static class ReviveHandler
             return;
         }
 
-        bool isNew = false;
         if (!_activeRevives.TryGetValue(id, out ReviveState state))
         {
             state = new ReviveState
@@ -77,7 +76,6 @@ internal static class ReviveHandler
                 SoundTimer = 0f
             };
             _activeRevives[id] = state;
-            isNew = true;
         }
 
         // Reset progress if target changed
@@ -87,7 +85,6 @@ internal static class ReviveHandler
             state.Progress = 0f;
             state.LastHealth = player.Health.CurrentValue;
             state.SoundTimer = 0f;
-            isNew = true;
         }
 
         // Interrupt if the reviver took damage

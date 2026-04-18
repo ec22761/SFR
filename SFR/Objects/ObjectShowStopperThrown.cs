@@ -61,7 +61,6 @@ internal sealed class ObjectShowStopperThrown : ObjectGrenadeThrown
     // Electric field particles (idle aura)
     private readonly FieldParticle[] _fieldParticles = new FieldParticle[MaxFieldParticles];
     private int _fieldParticleIndex;
-    private float _fieldEffectTimer;
 
     // Lightning bolt visuals (on detonation)
     private readonly LightningBolt[] _lightningBolts = new LightningBolt[LightningBolts];

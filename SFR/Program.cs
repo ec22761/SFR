@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using HarmonyLib;
 using SFR.Helper;
@@ -20,7 +20,7 @@ internal static class Program
     private static string _gameUri = "https://github.com/Odex64/SFR/releases/download/GAMEVERSION/SFR.zip";
     internal static readonly string GameDirectory = Directory.GetCurrentDirectory();
     private static readonly Harmony _harmony = new("github.com/Odex64/SFR");
-    private static WebClient _webClient;
+    private static readonly HttpClient _httpClient = new();
 
     private static int Main(string[] args)
     {
@@ -110,13 +110,11 @@ internal static class Program
         string remoteVersion;
         try
         {
-            _webClient = new WebClient();
-            remoteVersion = _webClient.DownloadString(_versionUri).Trim();
+            remoteVersion = _httpClient.GetStringAsync(_versionUri).GetAwaiter().GetResult().Trim();
         }
-        catch (WebException)
+        catch (HttpRequestException)
         {
             Logger.LogError("Couldn't fetch updates - Starting the game without updating!");
-            _webClient.Dispose();
             return false;
         }
 
@@ -133,8 +131,6 @@ internal static class Program
             case 0 when versionInfo.Length > 1 && int.TryParse(versionInfo[1], out int result) && result > Globals.Build:
                 return Update();
         }
-
-        _webClient.Dispose();
 
         Logger.LogInfo("No updates found. Starting");
         return false;
@@ -167,16 +163,15 @@ internal static class Program
 
             try
             {
-                _webClient.DownloadFile(_gameUri, archivePath);
+                using var response = _httpClient.GetAsync(_gameUri).GetAwaiter().GetResult();
+                response.EnsureSuccessStatusCode();
+                using var fs = File.Create(archivePath);
+                response.Content.CopyToAsync(fs).GetAwaiter().GetResult();
             }
-            catch (WebException)
+            catch (HttpRequestException)
             {
                 Logger.LogError("Couldn't fetch updates - Starting the game without updating!");
                 return false;
-            }
-            finally
-            {
-                _webClient.Dispose();
             }
 
             ReplaceOldFile(Assembly.GetExecutingAssembly().Location);
@@ -205,8 +200,6 @@ internal static class Program
             Logger.LogInfo("SFR has been updated to the latest version.");
             return true;
         }
-
-        _webClient.Dispose();
 
         Logger.LogWarn("Ignoring update.");
         return false;

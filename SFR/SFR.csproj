@@ -16,6 +16,7 @@
     <EnableDefaultItems>true</EnableDefaultItems>
     <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
     <GenerateDependencyFile>false</GenerateDependencyFile>
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
     <PostBuildEvent>call "$(MSBuildProjectDirectory)\build.bat" "$(TargetDir)" "$(MSBuildProjectDirectory)\.."</PostBuildEvent>
   </PropertyGroup>
 

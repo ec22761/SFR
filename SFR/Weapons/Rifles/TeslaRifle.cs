@@ -64,10 +64,8 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private Vector2 _beamEnd; // world-space beam end (hit or max range)
     private Vector2 _beamDir; // world-space beam direction (for stable rendering)
     private float _lastSparkEffectTime; // throttle spark effects at beam hit
-    private float _lastHitEffectTime; // throttle material hit effects (smoke/dust)
     private float _lastPlasmaEffectTime; // throttle plasma particle draws
     private float _lastSmokeEffectTime; // throttle smoke puff effects
-    private bool _beamHitSurface; // whether the beam hit a solid surface (not a player/empty)
 
     // Beam electric arc state
     private readonly BeamArc[] _beamArcs = new BeamArc[MaxBeamArcs];
@@ -451,14 +449,12 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 
         _beamStart = muzzleWorld;
         _beamDir = aimDir;
-        _beamHitSurface = false;
 
         if (args.Player.GameOwner != GameOwnerEnum.Client)
         {
             // Server/host: piercing damage raycast — beam smashes through all objects.
             Vector2 castOrigin = muzzleWorld;
             float remainingRange = range;
-            _beamHitSurface = false;
             HashSet<int> hitPlayerIds = null;
 
             for (int pierce = 0; pierce < MaxPierceIterations && remainingRange > 1f; pierce++)
@@ -516,7 +512,6 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 
                 // Hit an indestructible surface — beam stops here.
                 _beamEnd = ray.EndPosition;
-                _beamHitSurface = true;
                 // Visual effects (smoke, sparks, material hits) are handled
                 // in DrawExtra to avoid doubling up on the host.
                 break;
@@ -527,7 +522,6 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
             // Client: visual-only raycast for beam endpoint — also pierce through destructibles.
             Vector2 castOrigin = muzzleWorld;
             float remainingRange = range;
-            _beamHitSurface = false;
 
             for (int pierce = 0; pierce < MaxPierceIterations && remainingRange > 1f; pierce++)
             {
@@ -553,7 +547,6 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 
                 // Indestructible surface — beam ends here.
                 _beamEnd = ray.EndPosition;
-                _beamHitSurface = true;
                 break;
             }
         }
