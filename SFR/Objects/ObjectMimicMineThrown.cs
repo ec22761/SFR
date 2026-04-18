@@ -1,18 +1,15 @@
-using System;
-using Box2D.XNA;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SFD;
 using SFD.Effects;
 using SFD.Materials;
+using SFR.Helper;
 using SFD.Projectiles;
 using SFD.Sounds;
 using SFD.Tiles;
-using SFR.Helper;
 using SFR.Misc;
 using SFR.Projectiles;
 using Explosion = SFD.Explosion;
-using Math = System.Math;
 using Player = SFD.Player;
 
 namespace SFR.Objects;
@@ -21,7 +18,7 @@ namespace SFR.Objects;
 /// Mimic Mine — a thrown mine that looks like a supply crate.
 /// Once it lands and arms itself, it disguises as a randomly chosen
 /// supply crate variant with a very subtle hue shift.
-/// When a player walks within pickup range, it explodes.
+/// When a player kicks, punches, or shoots it, it explodes.
 /// </summary>
 internal sealed class ObjectMimicMineThrown : ObjectData
 {
@@ -35,14 +32,8 @@ internal sealed class ObjectMimicMineThrown : ObjectData
     private float _detonateTimer = DetonateDelay;
     private int _disguiseVariant;
 
-    // --- Sticky ---
-    private bool _stickied;
-    private float _stickiedAngle;
-    private ObjectData _stickiedObject;
-    private Vector2 _stickiedOffset = Vector2.Zero;
-    private float _normalAngle;
-    private Filter _originalFilter;
-    private bool _filterApplied;
+    // --- Landing ---
+    private bool _landed;
 
     // --- Blinking ---
     private bool _blink;
@@ -98,7 +89,28 @@ internal sealed class ObjectMimicMineThrown : ObjectData
     {
         if (GameOwner != GameOwnerEnum.Client && projectile.Properties.ProjectileID != 64 && projectile is not IExtendedProjectile)
         {
-            Destroy();
+            if (_state == MimicState.Disguised)
+            {
+                TriggerDetonation();
+            }
+            else
+            {
+                Destroy();
+            }
+        }
+    }
+
+    public override void BeforePlayerMeleeHit(Player player, PlayerBeforeHitEventArgs e)
+    {
+    }
+
+    public override void PlayerMeleeHit(Player player, PlayerHitEventArgs e)
+    {
+        ObjectDataMethods.DefaultPlayerHitBaseballEffect(this, player, e);
+
+        if (_state == MimicState.Disguised && GameOwner != GameOwnerEnum.Client)
+        {
+            TriggerDetonation();
         }
     }
 
@@ -126,10 +138,6 @@ internal sealed class ObjectMimicMineThrown : ObjectData
                     _state = MimicState.Disguised;
                     _blink = false;
                     SwapDecal(_disguiseTexture);
-                    // Enable interact prompt so players think it's a pickup
-                    Activateable = true;
-                    ActivateableHighlightning = true;
-                    ActivateRange = 14f;
                     break;
                 case 3:
                     _state = MimicState.Detonating;
@@ -163,12 +171,6 @@ internal sealed class ObjectMimicMineThrown : ObjectData
             case MimicState.Detonating:
                 UpdateDetonating(ms);
                 break;
-        }
-
-        // Sticky tracking (while attached to an object)
-        if (_stickied && _state is MimicState.Arming or MimicState.Disguised)
-        {
-            UpdateStickyTracking();
         }
 
         // Blinking during arming
@@ -212,11 +214,7 @@ internal sealed class ObjectMimicMineThrown : ObjectData
         }
     }
 
-    /// <summary>
-    /// Called when a player presses the interact button on this object.
-    /// Triggers the detonation sequence.
-    /// </summary>
-    public override void Activate(ObjectData sender)
+    private void TriggerDetonation()
     {
         if (_state == MimicState.Disguised && GameOwner != GameOwnerEnum.Client)
         {
@@ -240,12 +238,6 @@ internal sealed class ObjectMimicMineThrown : ObjectData
                 EffectHandler.PlayEffect("GR_D", GetWorldPosition(), GameWorld);
                 SoundHandler.PlaySound("GrenadeDud", GameWorld);
                 Properties.Get(ObjectPropertyID.Mine_Status).Value = -1;
-                Body.SetType(BodyType.Dynamic);
-                if (_filterApplied)
-                {
-                    Body.GetFixtureByIndex(0).SetFilterData(ref _originalFilter);
-                    _filterApplied = false;
-                }
             }
             else
             {
@@ -254,51 +246,6 @@ internal sealed class ObjectMimicMineThrown : ObjectData
 
             DisableUpdateObject();
         }
-    }
-
-    private void UpdateStickyTracking()
-    {
-        if (_stickiedObject is { RemovalInitiated: false })
-        {
-            if (!_filterApplied)
-            {
-                ApplyStaticFilter();
-            }
-
-            if (_stickiedObject.Body is not null)
-            {
-                Vector2 gamePos = _stickiedOffset;
-                SFDMath.RotatePosition(ref gamePos, _stickiedObject.GetAngle() - _stickiedAngle, out gamePos);
-                gamePos += _stickiedObject.GetWorldPosition();
-                Vector2 newPos = new(Converter.WorldToBox2D(gamePos.X), Converter.WorldToBox2D(gamePos.Y));
-                float bodyAngle = _state == MimicState.Disguised
-                    ? 0f
-                    : -_stickiedObject.GetAngle() + _stickiedAngle - _normalAngle;
-                Body.SetTransform(newPos, bodyAngle);
-                SyncTransform();
-            }
-            else
-            {
-                _stickied = false;
-                Body.SetType(BodyType.Dynamic);
-            }
-        }
-    }
-
-    private void ApplyStaticFilter()
-    {
-        GetFixtureByIndex(0).GetFilterData(out _originalFilter);
-        Filter filter = new()
-        {
-            categoryBits = 0,
-            aboveBits = 0,
-            maskBits = 0,
-            blockMelee = false,
-            projectileHit = true,
-            absorbProjectile = true
-        };
-        Body.GetFixtureByIndex(0).SetFilterData(ref filter);
-        _filterApplied = true;
     }
 
     public override void OnDestroyObject()
@@ -322,20 +269,11 @@ internal sealed class ObjectMimicMineThrown : ObjectData
             EffectHandler.PlayEffect(Tile.ImpactEffect, GetWorldPosition(), GameWorld);
         }
 
-        if (!_stickied && otherObject is { RemovalInitiated: false, IsPlayer: false })
+        // Start arming on first impact (like a grenade landing)
+        if (!_landed && GameOwner != GameOwnerEnum.Client && _state == MimicState.Airborne)
         {
-            ChangeBodyType(BodyType.Static);
-            _stickiedObject = otherObject;
-            _stickied = true;
-            _stickiedOffset = GetWorldPosition() - otherObject.GetWorldPosition();
-            _stickiedAngle = otherObject.GetAngle();
-            _normalAngle = (float)Math.Atan2(e.WorldNormal.Y, e.WorldNormal.X);
-
-            // Start arming when we stick to something
-            if (GameOwner != GameOwnerEnum.Client && _state == MimicState.Airborne)
-            {
-                Properties.Get(ObjectPropertyID.Mine_Status).Value = 1;
-            }
+            _landed = true;
+            Properties.Get(ObjectPropertyID.Mine_Status).Value = 1;
         }
     }
 
@@ -347,7 +285,7 @@ internal sealed class ObjectMimicMineThrown : ObjectData
             SwapDecal(_blink ? _armingTexture : _disguiseTexture);
         }
 
-        DrawBase(spriteBatch, ms, Color.White);
+        DrawBase(spriteBatch, ms, new Color(0.5f, 0.5f, 0.5f, 1f));
     }
 
     private enum MimicState

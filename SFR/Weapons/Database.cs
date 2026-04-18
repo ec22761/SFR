@@ -8,6 +8,8 @@ using SFR.Weapons.Melee;
 using SFR.Weapons.Others;
 using SFR.Weapons.Rifles;
 using SFR.Weapons.Thrown;
+using HandCannon = SFR.Weapons.Rifles.HandCannon;
+using JunkCannon = SFR.Weapons.Rifles.JunkCannon;
 
 namespace SFR.Weapons;
 
@@ -23,7 +25,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[117];
+        WeaponDatabase.m_weapons = new WeaponItem[120];
 
         Weapons ??=
         [
@@ -52,7 +54,6 @@ internal static class Database
             new WeaponItem(WeaponItemType.Handgun, new UnkemptHarold()), // 85
             new WeaponItem(WeaponItemType.Handgun, new StickyLauncher()), // 86
             new WeaponItem(WeaponItemType.Handgun, new Anaconda()), // 109
-            new WeaponItem(WeaponItemType.Handgun, new Snaphook()), // 116
 
             // Throwable
             new WeaponItem(WeaponItemType.Thrown, new Claymore()), // 87
@@ -60,10 +61,9 @@ internal static class Database
             new WeaponItem(WeaponItemType.Thrown, new ImpactGrenade()), // 89
             new WeaponItem(WeaponItemType.Thrown, new Snowball()), // 90
             new WeaponItem(WeaponItemType.Thrown, new StickyBomb()), // 91
-            new WeaponItem(WeaponItemType.Thrown, new GasGrenade()), // 111
-            new WeaponItem(WeaponItemType.Thrown, new ShowStopper()), // 112
-            new WeaponItem(WeaponItemType.Thrown, new LeapMine()), // 113
-            new WeaponItem(WeaponItemType.Thrown, new MimicMine()), // 115
+            new WeaponItem(WeaponItemType.Thrown, new ShowStopper()), // 111
+            new WeaponItem(WeaponItemType.Thrown, new MimicMine()), // 112
+            new WeaponItem(WeaponItemType.Thrown, new Caltrops()), // 117
 
             // Rifle
             new WeaponItem(WeaponItemType.Rifle, new AA12()), // 93
@@ -77,7 +77,9 @@ internal static class Database
             new WeaponItem(WeaponItemType.Rifle, new Winchester()), // 101
             new WeaponItem(WeaponItemType.Rifle, new Minigun()), // 102
             new WeaponItem(WeaponItemType.Rifle, new AK47()), // 107
-            new WeaponItem(WeaponItemType.Rifle, new Blowpipe()), // 114
+            new WeaponItem(WeaponItemType.Rifle, new HandCannon()), // 113
+            new WeaponItem(WeaponItemType.Rifle, new TeslaRifle()), // 114
+            new WeaponItem(WeaponItemType.Rifle, new JunkCannon()), // 116
 
             // Pickup
             new WeaponItem(WeaponItemType.Powerup, new HealthPouch()), // 92
@@ -85,7 +87,12 @@ internal static class Database
             new WeaponItem(WeaponItemType.Powerup, new LeapBoost()), // 110
             new WeaponItem(WeaponItemType.InstantPickup, new Jetpack()), // 104
             new WeaponItem(WeaponItemType.InstantPickup, new JetpackEditor()), // 105
-            new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()) // 106
+            new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()), // 106
+
+            // Consumable
+            new WeaponItem(WeaponItemType.Powerup, new SpectrumAnalyzer()), // 115
+            new WeaponItem(WeaponItemType.Powerup, new Defib()), // 118
+            new WeaponItem(WeaponItemType.Powerup, new ShrinkBoost()) // 119
         ];
 
         foreach (WeaponItem weapon in Weapons)
@@ -187,9 +194,9 @@ internal static class Database
             { 77, 6 }, // GreatSword
             { 78, 10 }, // Morningstar
             { 79, 8 }, //ParryingDagger
-            { 80, 8 }, // Poleaxe
+            { 80, 6 }, // Poleaxe
             { 81, 15 }, // Rapier
-            { 82, 16 }, // RiotShield,
+            // { 82, 12 }, // RiotShield,
             { 83, 16 }, // Sledgehammer
             { 84, 18 }, // Switchblade
             // { 85, 4 }, // UnkemptHarold
@@ -211,19 +218,22 @@ internal static class Database
             { 101, 12 }, // Winchester
             { 102, 6 }, // Minigun
             { 103, 12 }, // Adrenaline boost
-            { 104, 14 }, // Jetpack
-            // 105, Jetpack editor
+            // { 104, 14 }, // Jetpack
+            {105, 14 }, // Jetpack editor
             { 106, 10 }, // Gunpack
             { 107, 10 }, // AK47
-            { 108, 8 }, // Scythe
+            // { 108, 8 }, // Scythe
             { 109, 10 }, // Anaconda
-            { 110, 12 }, // Leap boost
-            { 111, 14 }, // Gas grenade
-            { 112, 10 }, // Show Stopper
-            { 113, 10 }, // Leap Mine
-            { 114, 10 }, // Blowpipe
-            //{ 115, 8 } // Mimic Mine
-            { 116, 8 }, // Snaphook
+            // { 110, 12 }, // Leap boost
+            { 111, 10 }, // Show Stopper
+            { 112, 8 }, // Mimic Mine
+            { 113, 1 }, // Hand Cannon
+            { 114, 8 }, // Tesla Rifle
+            { 115, 10 }, // Spectrum Analyzer
+            { 116, 8 }, // Junk Cannon
+            { 117, 15 }, // Caltrops
+            // { 118, 10 } // Defibrillator
+            { 119, 10 }, // Shrink Boost
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -341,11 +351,14 @@ internal static class Database
         Jetpack,
         JetpackEditor,
         Gunpack,
-        GasGrenade,
         ShowStopper,
-        LeapMine,
-        Blowpipe,
         MimicMine,
-        Snaphook
+        HandCannon,
+        TeslaRifle,
+        SpectrumAnalyzer,
+        JunkCannon,
+        Caltrops,
+        Defib,
+        ShrinkBoost
     }
 }

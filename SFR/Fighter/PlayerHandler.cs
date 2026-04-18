@@ -276,6 +276,9 @@ internal static class PlayerHandler
         {
             extendedPlayer.WasGrounded = __instance.StandingOnGround;
         }
+
+        // Teammate revive: track crouch-over-dead-teammate progress
+        ReviveHandler.Update(__instance, ms);
     }
 
     [HarmonyPrefix]
@@ -313,6 +316,11 @@ internal static class PlayerHandler
         ExtendedPlayer extendedPlayer = __instance.GetExtension();
         object currentWeapon = __instance.GetCurrentWeapon();
         if (currentWeapon is RiotShield)
+        {
+            __instance.Walking = true;
+        }
+
+        if (__instance is { CurrentWeaponDrawn: WeaponItemType.Rifle, CurrentRifleWeapon: HandCannon })
         {
             __instance.Walking = true;
         }
@@ -382,7 +390,7 @@ internal static class PlayerHandler
     [HarmonyPatch(typeof(Player), nameof(Player.CanActivateSprint))]
     private static bool ActivateSprint(Player __instance, ref bool __result)
     {
-        if (__instance is { CurrentWeaponDrawn: WeaponItemType.Rifle, CurrentRifleWeapon: Barrett, StrengthBoostActive: false })
+        if (__instance is { CurrentWeaponDrawn: WeaponItemType.Rifle, CurrentRifleWeapon: Barrett or HandCannon, StrengthBoostActive: false })
         {
             __result = false;
             return false;
@@ -454,14 +462,6 @@ internal static class PlayerHandler
             if (!player.IsDead && !player.IsRemoved)
             {
                 player.DeathKneeling = true;
-
-                // Play blue spark effects periodically
-                if (extendedPlayer.Time.Electrocution % 150f < ms)
-                {
-                    SFD.Effects.EffectHandler.PlayEffect("S_P", player.Position + new Vector2(
-                        Globals.Random.NextFloat(-4f, 4f),
-                        Globals.Random.NextFloat(0f, 12f)), player.GameWorld, 0.7f);
-                }
             }
 
             if (!extendedPlayer.Electrocuted || player.IsDead)
@@ -498,6 +498,24 @@ internal static class PlayerHandler
             if (!extendedPlayer.Poisoned || player.IsDead)
             {
                 extendedPlayer.DisablePoison();
+            }
+        }
+
+        if (extendedPlayer.Spectral)
+        {
+            extendedPlayer.Time.Spectral -= ms;
+            if (!extendedPlayer.Spectral || player.IsDead)
+            {
+                extendedPlayer.DisableSpectral();
+            }
+        }
+
+        if (extendedPlayer.ShrinkBoost)
+        {
+            extendedPlayer.Time.ShrinkBoost -= ms;
+            if (!extendedPlayer.ShrinkBoost || player.IsDead)
+            {
+                extendedPlayer.DisableShrinkBoost();
             }
         }
     }

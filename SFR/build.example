@@ -1,6 +1,8 @@
 SET SFD="C:\Program Files (x86)\Steam\steamapps\common\Superfighters Deluxe"
 cd ..
 
-copy %1\SFR.exe.config %SFD%
+copy %1\SFR.runtimeconfig.json %SFD%
+copy %1\SFR.deps.json %SFD%
+copy %1\SFR.dll %SFD%
 copy %1\SFR.exe %SFD%
-copy %1\0Harmony.dll %SFD%\SFR
+copy %1\0Harmony.dll %SFD%

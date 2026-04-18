@@ -198,6 +198,15 @@ internal static class AnimHandler
                 case LeapBoost leapBoost:
                     leapBoost.OnEffectStart(player);
                     break;
+                case SpectrumAnalyzer spectrumAnalyzer:
+                    spectrumAnalyzer.OnEffectStart(player);
+                    break;
+                case Defib defib:
+                    defib.OnEffectStart(player);
+                    break;
+                case ShrinkBoost shrinkBoost:
+                    shrinkBoost.OnEffectStart(player);
+                    break;
             }
         }
 

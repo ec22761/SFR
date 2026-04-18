@@ -102,6 +102,6 @@ internal sealed class ObjectCannon : ObjectActivateTrigger
         EffectHandler.PlayEffect("CAM_S", Vector2.Zero, GameWorld, 1f, 250f, false);
         Vector2 angle = new(FaceDirection * 16, 0);
         SFDMath.RotatePosition(ref angle, GetAngle(), out angle);
-        _ = GameWorld.SpawnProjectile(93, GetMuzzle(), angle, ObjectID);
+        _ = GameWorld.SpawnProjectile(115, GetMuzzle(), angle, ObjectID);
     }
 }

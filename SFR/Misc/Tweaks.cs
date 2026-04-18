@@ -17,29 +17,27 @@ internal static class Tweaks
     /// Here we return their correct title based on the object type and enum value.
     /// E.g: Metrolaw track used to return 42 instead of its name.
     /// </summary>
-    [HarmonyPrefix]
-    [HarmonyPatch(typeof(Enum), "InternalFormat")]
-    private static bool PatchEnums(Type eT, object value, ref string __result)
+    [HarmonyPostfix]
+    [HarmonyPatch(typeof(Enum), nameof(Enum.GetName), typeof(Type), typeof(object))]
+    private static void PatchEnums(Type enumType, object value, ref string __result)
     {
-        if (eT == typeof(MusicHandler.MusicTrackID) && value is int track)
+        if (enumType == typeof(MusicHandler.MusicTrackID) && value is int track)
         {
             switch (track)
             {
                 case 42:
                     __result = "Metrolaw";
-                    return false;
+                    return;
 
                 case 43:
                     __result = "FrozenBlood";
-                    return false;
+                    return;
             }
         }
-
-        return true;
     }
 
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Enum), nameof(Enum.IsDefined))]
+    [HarmonyPatch(typeof(Enum), nameof(Enum.IsDefined), typeof(Type), typeof(object))]
     private static bool IsEnumDefined(Type enumType, object value, ref bool __result)
     {
         if (enumType == null)
@@ -56,7 +54,7 @@ internal static class Tweaks
     /// This fixed an issue regarding supply crates
     /// </summary>
     [HarmonyPrefix]
-    [HarmonyPatch(typeof(Enum), nameof(Enum.GetValues))]
+    [HarmonyPatch(typeof(Enum), nameof(Enum.GetValues), typeof(Type))]
     private static bool GetEnumValues(Type enumType, ref Array __result)
     {
         if (enumType == typeof(WeaponItem))

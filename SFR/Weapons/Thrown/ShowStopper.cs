@@ -12,7 +12,7 @@ internal sealed class ShowStopper : TWeapon
 {
     internal ShowStopper()
     {
-        TWeaponProperties weaponProperties = new(112, "Show_Stopper", "WpnShowStopper", false, WeaponCategory.Supply)
+        TWeaponProperties weaponProperties = new(111, "Show_Stopper", "WpnShowStopper", false, WeaponCategory.Supply)
         {
             MaxCarriedTotalThrowables = 3,
             NumberOfThrowables = 2,

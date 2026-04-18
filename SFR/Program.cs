@@ -180,7 +180,10 @@ internal static class Program
             }
 
             ReplaceOldFile(Assembly.GetExecutingAssembly().Location);
-            ReplaceOldFile(Path.Combine(GameDirectory, "SFR.exe.config"));
+            ReplaceOldFile(Path.Combine(GameDirectory, "SFR.exe"));
+            ReplaceOldFile(Path.Combine(GameDirectory, "SFR.runtimeconfig.json"));
+            ReplaceOldFile(Path.Combine(GameDirectory, "SFR.deps.json"));
+            ReplaceOldFile(Path.Combine(GameDirectory, "0Harmony.dll"));
 
             foreach (string file in Directory.GetFiles(contentDirectory, "*.dll", SearchOption.TopDirectoryOnly))
             {

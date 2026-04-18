@@ -865,6 +865,9 @@ Tile(MetalBucket00)
 	life = 50;
 	canBeMissile = true;
 	missileMarkAsHeavyDebris = true;
+	pickupType = instant;
+	pickupRange = 15.0;
+	drawCategory = ITM;
 	material = metal;
 	material.blockExplosions = false;
 	gibpressure.total = 40 kg;

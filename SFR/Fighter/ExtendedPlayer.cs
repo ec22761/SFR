@@ -46,11 +46,31 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         set => Time.Poison = value ? TimeSequence.PoisonTime : 0f;
     }
 
+    internal bool Spectral
+    {
+        get => Time.Spectral > 0f;
+        set => Time.Spectral = value ? TimeSequence.SpectralTime : 0f;
+    }
+
+    internal bool ShrinkBoost
+    {
+        get => Time.ShrinkBoost > 0f;
+        set => Time.ShrinkBoost = value ? TimeSequence.ShrinkBoostTime : 0f;
+    }
+
     /// <summary>
     ///     Tracks whether the player was on the ground last frame,
     ///     so we can detect jump transitions for the leap boost.
     /// </summary>
     internal bool WasGrounded;
+
+    internal float PreShrinkRunSpeed = 1f;
+    internal float PreShrinkSprintSpeed = 1f;
+    internal float PreShrinkSizeModifier = 1f;
+    internal float PreShrinkProjectileDamage = 1f;
+    internal float PreShrinkExplosionDamage = 1f;
+    internal float PreShrinkFireDamage = 1f;
+    internal float PreShrinkMeleeDamage = 1f;
 
     public bool Equals(Player other) => other?.ObjectID == Player.ObjectID;
 
@@ -68,7 +88,7 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
 
     internal object[] GetStates()
     {
-        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost, Electrocuted, Poisoned];
+        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost, Electrocuted, Poisoned, Spectral, ShrinkBoost];
         return states;
     }
 
@@ -110,6 +130,57 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
     }
 
+    internal void ApplySpectral()
+    {
+        Spectral = true;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+    }
+
+    internal void DisableSpectral()
+    {
+        Spectral = false;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+        SoundHandler.PlaySound("StrengthBoostStop", Player.Position, Player.GameWorld);
+    }
+
+    internal void ApplyShrinkBoost()
+    {
+        var mods = Player.GetModifiers();
+        PreShrinkRunSpeed = mods.RunSpeedModifier;
+        PreShrinkSprintSpeed = mods.SprintSpeedModifier;
+        PreShrinkSizeModifier = mods.SizeModifier;
+        PreShrinkProjectileDamage = mods.ProjectileDamageTakenModifier;
+        PreShrinkExplosionDamage = mods.ExplosionDamageTakenModifier;
+        PreShrinkFireDamage = mods.FireDamageTakenModifier;
+        PreShrinkMeleeDamage = mods.MeleeDamageTakenModifier;
+        mods.RunSpeedModifier = PreShrinkRunSpeed * 1.6f;
+        mods.SprintSpeedModifier = PreShrinkSprintSpeed * 1.6f;
+        mods.SizeModifier = PreShrinkSizeModifier * 0.4f;
+        mods.ProjectileDamageTakenModifier = PreShrinkProjectileDamage * 1.2f;
+        mods.ExplosionDamageTakenModifier = PreShrinkExplosionDamage * 1.2f;
+        mods.FireDamageTakenModifier = PreShrinkFireDamage * 1.2f;
+        mods.MeleeDamageTakenModifier = PreShrinkMeleeDamage * 1.2f;
+        Player.SetModifiers(mods);
+        ShrinkBoost = true;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+    }
+
+    internal void DisableShrinkBoost()
+    {
+        var mods = Player.GetModifiers();
+        mods.RunSpeedModifier = PreShrinkRunSpeed;
+        mods.SprintSpeedModifier = PreShrinkSprintSpeed;
+        mods.SizeModifier = PreShrinkSizeModifier;
+        mods.ProjectileDamageTakenModifier = PreShrinkProjectileDamage;
+        mods.ExplosionDamageTakenModifier = PreShrinkExplosionDamage;
+        mods.FireDamageTakenModifier = PreShrinkFireDamage;
+        mods.MeleeDamageTakenModifier = PreShrinkMeleeDamage;
+        Player.SetModifiers(mods);
+        ShrinkBoost = false;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+        SoundHandler.PlaySound("StrengthBoostStop", Player.Position, Player.GameWorld);
+    }
+
     internal class TimeSequence
     {
         internal const float AdrenalineBoostTime = 20000f;
@@ -118,11 +189,15 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         internal const float PoisonTime = 5000f;
         internal const float PoisonDamagePerTick = 2f;
         internal const float PoisonTickInterval = 500f;
+        internal const float SpectralTime = 30000f;
+        internal const float ShrinkBoostTime = 20000f;
         internal float AdrenalineBoost;
         internal float LeapBoost;
         internal float Electrocution;
         internal float Poison;
         internal float PoisonTickTimer;
+        internal float Spectral;
+        internal float ShrinkBoost;
     }
 
     public bool Equals(ExtendedPlayer other) => other?.Player.ObjectID == Player.ObjectID;
