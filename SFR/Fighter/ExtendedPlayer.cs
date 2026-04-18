@@ -155,11 +155,7 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         PreShrinkMeleeDamage = mods.MeleeDamageTakenModifier;
         mods.RunSpeedModifier = PreShrinkRunSpeed * 1.6f;
         mods.SprintSpeedModifier = PreShrinkSprintSpeed * 1.6f;
-        mods.SizeModifier = PreShrinkSizeModifier * 0.4f;
-        mods.ProjectileDamageTakenModifier = PreShrinkProjectileDamage * 1.2f;
-        mods.ExplosionDamageTakenModifier = PreShrinkExplosionDamage * 1.2f;
-        mods.FireDamageTakenModifier = PreShrinkFireDamage * 1.2f;
-        mods.MeleeDamageTakenModifier = PreShrinkMeleeDamage * 1.2f;
+        mods.SizeModifier = PreShrinkSizeModifier * 0.3f;
         Player.SetModifiers(mods);
         ShrinkBoost = true;
         GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
