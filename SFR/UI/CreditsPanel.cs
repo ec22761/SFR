@@ -16,6 +16,9 @@ internal sealed class CreditsPanel : Panel
             new MenuItemLabel("Project Repo", Align.Center, Color.BlueViolet, _ => Process.Start("https://github.com/Odex64/SFR")),
             new MenuItemLabel("Discord", Align.Center, Color.BlueViolet, _ => Process.Start("https://discord.gg/CqYZfazH6M")),
 
+            new MenuItemSeparator("LEGACY MOD MAINTAINERS"),
+            new MenuItemLabel("Roman Pretty", Align.Center, Color.Cyan),
+
             new MenuItemSeparator("PROGRAMMERS"),
             new MenuItemLabel("Odex64", Align.Center, Color.Orange),
             new MenuItemLabel("Argón", Align.Center, Color.Orange),
