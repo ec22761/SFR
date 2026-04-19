@@ -48,9 +48,9 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private const float SmokeEffectInterval = 60f; // ms between smoke effects at hit point
 
     // --- Player impact constants ---
-    private const float BeamPushForceX = 4.5f;   // horizontal shove along beam direction
-    private const float BeamPushForceY = 1.5f;   // small upward lift
-    private const float BeamPushMaxSpeedX = 7f;  // cap so continuous beam doesn't launch player to escape velocity
+    private const float BeamPushForceX = 2.0f;   // horizontal shove along beam direction
+    private const float BeamPushForceY = 0.7f;   // small upward lift
+    private const float BeamPushMaxSpeedX = 3.5f; // cap so continuous beam doesn't launch player to escape velocity
 
     // Burn buildup meter: each beam hit on a player increments their buildup;
     // when no longer hit, the buildup decays. Crossing the first threshold
