@@ -214,7 +214,13 @@ internal static class EnvironmentDestructionHandler
     private const float GargoyleChainDamage = 110f;
 
     /// <summary>Number of metal debris pieces sprayed when a helicopter is destroyed.</summary>
-    private const int HelicopterMetalChunks = 32;
+    /// <remarks>
+    /// Each entry in the array passed to <c>SpawnDebris</c> spawns a real
+    /// physics piece, so this directly controls particle count. Combined with
+    /// the rigid scrap tiles (<see cref="HelicopterScrapTiles"/>), values
+    /// above ~16 cause noticeable stalls; keep it modest.
+    /// </remarks>
+    private const int HelicopterMetalChunks = 14;
 
     /// <summary>Number of fully-rigid burning metal scrap tiles spawned alongside the debris.</summary>
     private const int HelicopterScrapTiles = 8;
@@ -359,12 +365,73 @@ internal static class EnvironmentDestructionHandler
         LaunchedChunks.Clear();
         _detonatedGargoyles.Clear();
         _shreddedHelicopters.Clear();
+        _chunkPeakSpeed.Clear();
+        _chunkLastSpeed.Clear();
+        _pendingCollapses.Clear();
     }
 
     /// <summary>
     /// Accumulated milliseconds since the last burning-fragment sweep.
     /// </summary>
     private static float s_fireSweepElapsedMs;
+
+    /// <summary>
+    /// Min impact speed (Box2D m/s) at which a launched chunk will shatter
+    /// into rubble on contact, instead of just bouncing/sliding to a stop.
+    /// Raised from a low threshold to avoid false-positives from grazing
+    /// mid-air collisions with other chunks; we want a real "hit the ground"
+    /// event, not every bump.
+    /// </summary>
+    private const float RubbleMinImpactSpeed = 8.5f;
+
+    /// <summary>
+    /// Speed-drop ratio that counts as an "impact". When a chunk's measured
+    /// linear speed drops to less than this fraction of its peak in a single
+    /// physics tick, we treat that as a hard collision. 0.30 = ~70% loss
+    /// (i.e., the chunk basically stopped). Tighter than the old 0.45 so
+    /// chunks that merely glance off something don't shatter.
+    /// </summary>
+    private const float RubbleImpactDecelRatio = 0.30f;
+
+    /// <summary>
+    /// Probability that a hard-impact chunk converts into rubble. The rest
+    /// stay intact as fallen rigid pieces, giving the floor a mix of dust
+    /// piles and a few recognisable surviving slabs — more visually
+    /// interesting than 100% pulverisation.
+    /// </summary>
+    private const float RubbleConvertChance = 0.8f;
+
+    /// <summary>Min/max debris pieces emitted when a chunk shatters into rubble.</summary>
+    private const int RubbleDebrisMin = 6;
+    private const int RubbleDebrisMax = 14;
+
+    /// <summary>
+    /// Max random per-tile delay (ms) added to chain-collapse launches. Each
+    /// scheduled neighbour gets a uniform random delay in [0, this], so a
+    /// long roof falls in a wave instead of pancaking flat in one frame.
+    /// </summary>
+    private const float ChainFallJitterMaxMs = 220f;
+
+    /// <summary>Per-chunk peak linear speed seen so far (key = ObjectID).</summary>
+    private static readonly Dictionary<int, float> _chunkPeakSpeed = new();
+
+    /// <summary>Per-chunk linear speed observed in the previous tick.</summary>
+    private static readonly Dictionary<int, float> _chunkLastSpeed = new();
+
+    /// <summary>
+    /// Pending chain-collapse launch. Holds a snapshot of the parameters so
+    /// the launch can be replayed when the delay elapses.
+    /// </summary>
+    private struct PendingCollapse
+    {
+        public float DelayMs;
+        public int ObjectId;
+        public Vector2 Velocity;
+        public float AngularVelocity;
+        public string[] FlavourDebris;
+    }
+
+    private static readonly List<PendingCollapse> _pendingCollapses = new();
 
     [HarmonyPostfix]
     [HarmonyPatch(typeof(GameWorld), nameof(GameWorld.Update))]
@@ -375,6 +442,14 @@ internal static class EnvironmentDestructionHandler
             return;
         }
 
+        // Rubble-on-impact: every tick, scan launched chunks, track speed
+        // history, and shatter any that just took a hard deceleration.
+        TickChunkImpactRubble(__instance);
+
+        // Chain-fall jitter: tick down pending delayed launches and fire
+        // them when their timer elapses.
+        TickPendingCollapses(__instance, chunkMs);
+
         s_fireSweepElapsedMs += chunkMs;
         if (s_fireSweepElapsedMs < FireCollapseIntervalMs)
         {
@@ -383,6 +458,201 @@ internal static class EnvironmentDestructionHandler
         s_fireSweepElapsedMs = 0f;
 
         BurnCollapseFragments(__instance);
+    }
+
+    /// <summary>
+    /// Per-tick rubble check. For each tracked launched chunk:
+    ///   * Updates peak speed.
+    ///   * If current speed is well below previous-tick speed AND that prior
+    ///     speed exceeded <see cref="RubbleMinImpactSpeed"/>, treats this as
+    ///     a hard impact and shatters the chunk into a small material-
+    ///     appropriate debris burst.
+    /// Cleans up tracking entries for chunks that no longer exist.
+    /// </summary>
+    private static void TickChunkImpactRubble(GameWorld world)
+    {
+        if (LaunchedChunks.Count == 0)
+        {
+            // Drop any stale tracking entries.
+            if (_chunkPeakSpeed.Count > 0) _chunkPeakSpeed.Clear();
+            if (_chunkLastSpeed.Count > 0) _chunkLastSpeed.Clear();
+            return;
+        }
+
+        // Snapshot to avoid mutating during enumeration.
+        int[] ids = new int[LaunchedChunks.Count];
+        LaunchedChunks.CopyTo(ids);
+
+        foreach (int id in ids)
+        {
+            ObjectData chunk;
+            try { chunk = world.GetObjectDataByID(id); }
+            catch { chunk = null; }
+
+            if (chunk == null || chunk.RemovalInitiated || chunk.Body == null)
+            {
+                _chunkPeakSpeed.Remove(id);
+                _chunkLastSpeed.Remove(id);
+                continue;
+            }
+
+            float speed;
+            try { speed = chunk.Body.GetLinearVelocity().Length(); }
+            catch { continue; }
+
+            float peak = _chunkPeakSpeed.TryGetValue(id, out float p) ? p : 0f;
+            if (speed > peak) peak = speed;
+            _chunkPeakSpeed[id] = peak;
+
+            float last = _chunkLastSpeed.TryGetValue(id, out float l) ? l : speed;
+            _chunkLastSpeed[id] = speed;
+
+            // Need a meaningful prior speed AND a sharp deceleration this tick.
+            if (last < RubbleMinImpactSpeed) continue;
+            if (speed >= last * RubbleImpactDecelRatio) continue;
+
+            // Hard impact — most chunks shatter into rubble, a few survive.
+            if (Globals.Random.NextDouble() < RubbleConvertChance)
+            {
+                try { ShatterChunkIntoRubble(world, chunk, last); }
+                catch { /* tolerate quirky tiles */ }
+            }
+            else
+            {
+                // Spare this one — leave it as a fallen rigid piece, but
+                // stop tracking so a later collision doesn't shatter it.
+                LaunchedChunks.Remove(id);
+            }
+
+            _chunkPeakSpeed.Remove(id);
+            _chunkLastSpeed.Remove(id);
+        }
+    }
+
+    /// <summary>
+    /// Replaces a launched chunk with a small burst of material-appropriate
+    /// debris pieces, then removes the chunk. <paramref name="impactSpeed"/>
+    /// is used to scale the rubble cloud's size so harder hits make more
+    /// pieces.
+    /// </summary>
+    /// <summary>
+    /// Spawn debris with an explicit piece count. SFD's
+    /// <see cref="GameWorld.SpawnDebris"/> uses the array length as the
+    /// piece count (one piece per slot) and treats the <c>short</c>
+    /// argument as a face-direction MULTIPLIER for the X spawn offset
+    /// (NOT a count). Passing large numbers there silently sprays pieces
+    /// across the room. This wrapper builds a properly-sized array of
+    /// random palette picks and forwards a face-direction of <c>+/-1</c>.
+    /// </summary>
+    private static void SpawnDebrisCount(
+        GameWorld world, ObjectData source, Vector2 pos, float radius,
+        string[] palette, int count)
+    {
+        if (world == null || palette == null || palette.Length == 0 || count <= 0)
+        {
+            return;
+        }
+
+        // Hard safety cap: each entry spawns a real physics body, and SFD's
+        // SpawnDebris pipeline scales poorly past this. Anything higher tends
+        // to stall a frame or freeze the game outright.
+        if (count > 16) count = 16;
+
+        string[] pieces = new string[count];
+        for (int i = 0; i < count; i++)
+        {
+            pieces[i] = palette[Globals.Random.Next(palette.Length)];
+        }
+        short face = (short)(Globals.Random.Next(2) == 0 ? -1 : 1);
+        try { world.SpawnDebris(source, pos, radius, pieces, face, true); }
+        catch { /* not critical */ }
+    }
+
+    private static void ShatterChunkIntoRubble(GameWorld world, ObjectData chunk, float impactSpeed)
+    {
+        Vector2 pos;
+        try { pos = chunk.GetWorldPosition(); }
+        catch { return; }
+
+        string[] debris = ResolveMaterial(chunk.MapObjectID).Debris;
+        if (debris == null || debris.Length == 0) return;
+
+        // Scale piece count by impact intensity. Reach max at ~14 m/s — most
+        // chunks land below that and we want the heavy hits to look like a
+        // proper material smash, not a polite puff.
+        float intensity = MathHelper.Clamp(impactSpeed / 14f, 0f, 1f);
+        int count = (int)Math.Round(MathHelper.Lerp(RubbleDebrisMin, RubbleDebrisMax, intensity));
+        if (count < RubbleDebrisMin) count = RubbleDebrisMin;
+
+        // Tight scatter — pieces should pile near the impact point, not
+        // spray across the room.
+        SpawnDebrisCount(world, chunk, pos, 2.5f, debris, count);
+
+        LaunchedChunks.Remove(chunk.ObjectID);
+        try { chunk.Destroy(); }
+        catch
+        {
+            try { chunk.Remove(); } catch { /* tolerate */ }
+        }
+    }
+
+    /// <summary>
+    /// Processes pending chain-collapse launches: decrements each timer and
+    /// fires the delayed <see cref="LaunchAsDynamic"/> when the delay elapses.
+    /// Entries whose target object has been removed are silently dropped.
+    /// </summary>
+    private static void TickPendingCollapses(GameWorld world, float chunkMs)
+    {
+        if (_pendingCollapses.Count == 0) return;
+
+        for (int i = _pendingCollapses.Count - 1; i >= 0; i--)
+        {
+            PendingCollapse pc = _pendingCollapses[i];
+            pc.DelayMs -= chunkMs;
+            if (pc.DelayMs > 0f)
+            {
+                _pendingCollapses[i] = pc;
+                continue;
+            }
+
+            _pendingCollapses.RemoveAt(i);
+
+            ObjectData tile;
+            try { tile = world.GetObjectDataByID(pc.ObjectId); }
+            catch { continue; }
+
+            if (tile == null || tile.RemovalInitiated || !tile.IsStatic)
+            {
+                continue;
+            }
+
+            try
+            {
+                LaunchAsDynamic(world, tile, pc.Velocity, pc.AngularVelocity, pc.FlavourDebris, 1);
+            }
+            catch { /* tolerate */ }
+        }
+    }
+
+    /// <summary>
+    /// Schedules a chain-collapse launch with a small random delay so a
+    /// chain reaction falls in a wave instead of pancaking flat in one
+    /// frame. Returns true if the schedule was accepted.
+    /// </summary>
+    private static bool ScheduleDelayedCollapse(ObjectData tile, Vector2 vel, float angVel, string[] flavourDebris)
+    {
+        if (tile == null || tile.RemovalInitiated) return false;
+
+        float delay = (float)Globals.Random.NextDouble() * ChainFallJitterMaxMs;
+        _pendingCollapses.Add(new PendingCollapse
+        {
+            DelayMs = delay,
+            ObjectId = tile.ObjectID,
+            Velocity = vel,
+            AngularVelocity = angVel,
+            FlavourDebris = flavourDebris,
+        });
+        return true;
     }
 
     /// <summary>
@@ -848,22 +1118,11 @@ internal static class EnvironmentDestructionHandler
         // and gives them more outward velocity.
         float scatterRadius = MathHelper.Clamp(halfMax, 8f, 32f);
 
-        try
-        {
-            world.SpawnDebris(tile, center, scatterRadius, debris, (short)chunks, true);
-        }
-        catch
-        {
-            return false;
-        }
+        SpawnDebrisCount(world, tile, center, scatterRadius, debris, chunks);
 
         // Optional secondary burst biased away from the explosion centre to give
         // the cloud directional momentum (looks more like a blast, less like a puff).
-        try
-        {
-            world.SpawnDebris(tile, center + dir * (halfMax * 0.5f), scatterRadius, debris, (short)Math.Max(2, chunks / 3), true);
-        }
-        catch { /* not critical */ }
+        SpawnDebrisCount(world, tile, center + dir * (halfMax * 0.5f), scatterRadius, debris, Math.Max(2, chunks / 3));
 
         try { tile.Destroy(); }
         catch
@@ -993,8 +1252,7 @@ internal static class EnvironmentDestructionHandler
 
         int chunks = Math.Min(LongThinDebrisMaxChunks, Math.Max(2, hitUnits * LongThinDebrisChunksPerUnit));
         float scatterRadius = MathHelper.Clamp((carveEnd - carveStart) * 0.5f, 6f, 16f);
-        try { world.SpawnDebris(tile, carveCenter, scatterRadius, debris, (short)chunks, true); }
-        catch { /* tolerate */ }
+        SpawnDebrisCount(world, tile, carveCenter, scatterRadius, debris, chunks);
 
         // Visual scar so the BG layer shows through the new gap.
         float scarRadius = Math.Max(shortAxis * 0.75f,
@@ -1177,8 +1435,7 @@ internal static class EnvironmentDestructionHandler
             // Shatter declined (no debris set / AABB unavailable). Destroy in
             // place anyway — better to disappear than to slide.
             float fbScatter = MathHelper.Clamp(Math.Max(width, height) * 0.25f, 6f, 16f);
-            try { world.SpawnDebris(tile, center, fbScatter, debris, (short)Math.Min(LongThinDebrisMaxChunks, 8), true); }
-            catch { /* tolerate */ }
+            SpawnDebrisCount(world, tile, center, fbScatter, debris, Math.Min(LongThinDebrisMaxChunks, 8));
             try { tile.Destroy(); }
             catch
             {
@@ -1189,8 +1446,7 @@ internal static class EnvironmentDestructionHandler
 
         // Small enough to safely dislodge as one piece (compact tiles).
         float scatter = MathHelper.Clamp(Math.Max(width, height) * 0.25f, 6f, 14f);
-        try { world.SpawnDebris(tile, center, scatter, debris, (short)Math.Min(LongThinDebrisMaxChunks, 6), true); }
-        catch { /* tolerate */ }
+        SpawnDebrisCount(world, tile, center, scatter, debris, Math.Min(LongThinDebrisMaxChunks, 6));
 
         Vector2 outward = center - explosionCenter;
         if (outward.LengthSquared() > 0.0001f) outward.Normalize();
@@ -1485,14 +1741,7 @@ internal static class EnvironmentDestructionHandler
                 // Puff of tiny bits alongside each blown cell — makes the
                 // hole look explosively carved rather than a grid of boxes
                 // silently flipping to dynamic.
-                if (debris != null && debris.Length > 0)
-                {
-                    try
-                    {
-                        world.SpawnDebris(frag, fCenter, 6f, debris, (short)FragmentFlavourDebris, true);
-                    }
-                    catch { /* not critical */ }
-                }
+                SpawnDebrisCount(world, frag, fCenter, 6f, debris, FragmentFlavourDebris);
 
                 Vector2 fOut = fCenter - explosionCenter;
                 if (fOut.LengthSquared() > 0.0001f) fOut.Normalize();
@@ -1650,14 +1899,7 @@ internal static class EnvironmentDestructionHandler
 
         LaunchedChunks.Add(tile.ObjectID);
 
-        if (flavourCount > 0 && flavourDebris != null && flavourDebris.Length > 0)
-        {
-            try
-            {
-                world.SpawnDebris(tile, tilePos, 6f, flavourDebris, (short)flavourCount, true);
-            }
-            catch { /* not critical */ }
-        }
+        SpawnDebrisCount(world, tile, tilePos, 6f, flavourDebris, flavourCount);
 
         return true;
     }
@@ -1883,7 +2125,7 @@ internal static class EnvironmentDestructionHandler
                 }
             }
 
-            if (!LaunchAsDynamic(world, neighbor, vel, angVel, material.Debris, 1))
+            if (!ScheduleDelayedCollapse(neighbor, vel, angVel, material.Debris))
             {
                 continue;
             }
@@ -2041,8 +2283,7 @@ internal static class EnvironmentDestructionHandler
         // Spawn a chunky burst of stone debris and physically remove the
         // gargoyle tile — gargoyles are ObjectDefault statics that SFD's
         // explosion code won't destroy on its own.
-        try { world.SpawnDebris(obj, centre, 14f, MatStone.Debris, 14, true); }
-        catch { /* tolerate */ }
+        SpawnDebrisCount(world, obj, centre, 14f, MatStone.Debris, 14);
 
         try { obj.Destroy(); }
         catch
@@ -2141,11 +2382,7 @@ internal static class EnvironmentDestructionHandler
         catch { return false; }
 
         // Spray of small metal debris particles via SFD's normal SpawnDebris path.
-        try
-        {
-            world.SpawnDebris(obj, centre, 28f, MetalDebris, (short)HelicopterMetalChunks, true);
-        }
-        catch { /* tolerate */ }
+        SpawnDebrisCount(world, obj, centre, 28f, MetalDebris, HelicopterMetalChunks);
 
         // Set the helicopter itself fully ablaze so its wreck burns visibly.
         try { obj.SetMaxFire(); } catch { /* tolerate */ }
