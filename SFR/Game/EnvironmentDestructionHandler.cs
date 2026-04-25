@@ -44,10 +44,10 @@ internal static class EnvironmentDestructionHandler
     private const float MinDamageToBreakStatic = 12f;
 
     /// <summary>Base impulse force applied to dislodged tiles. Scaled by damage/distance.</summary>
-    private const float DislodgeImpulseScale = 0.75f;
+    private const float DislodgeImpulseScale = 0.65f;
 
     /// <summary>Hard cap on the launch speed applied to a dislodged tile.</summary>
-    private const float MaxDislodgeSpeed = 12f;
+    private const float MaxDislodgeSpeed = 10f;
 
     /// <summary>How much tiny flavour-debris to spawn alongside a dislodged tile.</summary>
     private const int FlavourDebrisPerTile = 3;
@@ -1001,20 +1001,12 @@ internal static class EnvironmentDestructionHandler
             Math.Min((carveEnd - carveStart) * 0.5f, blastRadius * BackgroundHoleScale));
         BlastScarRenderer.AddScar(carveCenter, scarRadius);
 
-        // Compute body-anchor offset relative to the tile's AABB lower bound.
-        // SFD tiles are anchored at one corner of their footprint; using the
-        // AABB.lower-relative offset works regardless of which corner.
-        Vector2 currentBodyPos_box2d;
-        try { currentBodyPos_box2d = tile.Body.GetPosition(); }
-        catch
+        if (tile.Body == null)
         {
-            // No body -> fall back to whole-slab destroy.
             fullyDestroyed = true;
             return DestroyLongThinWhole(world, tile, aabb, explosionCenter, damage, debris);
         }
 
-        Vector2 currentBodyPos_world = Converter.ConvertBox2DToWorld(currentBodyPos_box2d);
-        Vector2 anchorOffset_world = currentBodyPos_world - aabb.lowerBound;
         float bodyAngle = 0f;
         try { bodyAngle = tile.Body.GetAngle(); } catch { /* tolerate */ }
 
@@ -1026,144 +1018,129 @@ internal static class EnvironmentDestructionHandler
             return true;
         }
 
-        // Pick the larger surviving side as the "primary" — that's the one we
-        // resize the original tile down to (no need to spawn a fresh body).
-        // The smaller surviving side becomes a new spawned tile.
-        int primaryStartUnit, primaryUnits, secondaryStartUnit, secondaryUnits;
-        if (leftUnits >= rightUnits)
-        {
-            primaryStartUnit = 0;
-            primaryUnits = leftUnits;
-            secondaryStartUnit = hitEndUnit;
-            secondaryUnits = rightUnits;
-        }
-        else
-        {
-            primaryStartUnit = hitEndUnit;
-            primaryUnits = rightUnits;
-            secondaryStartUnit = 0;
-            secondaryUnits = leftUnits;
-        }
+        // Capture parent state BEFORE destroying — we spawn surviving units as
+        // individual 1x1 cells. The rotation origin must be the slab's true
+        // visual centre. Using `tile.Body.GetPosition()` shifts everything by
+        // half the long-axis extent (body sits at a corner for long-thin
+        // tiles); using `tile.GetWorldCenterPosition()` was empirically also
+        // wrong (it returned an edge, not the centre, for these tiles).
+        // The supplied `aabb` is the tile's world-space AABB, which gives an
+        // unambiguous, rotation-agnostic centre. For axis-aligned tiles
+        // (which is the case for static map walls/floors), AABB centre =
+        // visual centre exactly.
+        Vector2 parentVisual_world = (aabb.lowerBound + aabb.upperBound) * 0.5f;
 
-        // Resize the original tile in place to the primary surviving side.
-        bool resized = ResizeLongThinInPlace(
-            tile, horizontal, primaryStartUnit, primaryUnits, shortMul,
-            aabb, anchorOffset_world, unitLength, bodyAngle);
+        int baseWidth, baseHeight;
+        try { tile.GetObjectBaseSize(out baseWidth, out baseHeight); }
+        catch { baseWidth = baseHeight = 0; }
 
-        if (!resized)
+        if (baseWidth <= 0 || baseHeight <= 0)
         {
-            // Couldn't resize for some reason — fall back to whole destroy so
-            // we don't leave an inconsistent collision body.
+            // Without base size we can't position cells precisely. Fall back
+            // to whole-destroy so the slab disappears cleanly instead of
+            // leaving misplaced fragments.
             fullyDestroyed = true;
             return DestroyLongThinWhole(world, tile, aabb, explosionCenter, damage, debris);
         }
 
-        // Spawn a new static tile for the smaller surviving side, if any.
-        if (secondaryUnits > 0)
-        {
-            SpawnLongThinSegment(
-                world, tile.MapObjectID, horizontal, secondaryStartUnit, secondaryUnits, shortMul,
-                aabb, anchorOffset_world, unitLength, bodyAngle);
-        }
+        string mapId = tile.MapObjectID;
+        string[] parentColors = null;
+        try { if (tile.HasColors) parentColors = tile.ColorsCopy; }
+        catch { /* tolerate */ }
 
-        return true;
-    }
-
-    /// <summary>
-    /// Resizes a long-thin tile in place: changes its size multiplier,
-    /// recreates the fixture at the new size, and shifts the body so that
-    /// the surviving units stay anchored where they were before the carve.
-    /// </summary>
-    private static bool ResizeLongThinInPlace(
-        ObjectData tile,
-        bool horizontal,
-        int startUnit,
-        int units,
-        int shortMul,
-        AABB oldAabb,
-        Vector2 anchorOffset_world,
-        float unitLength,
-        float bodyAngle)
-    {
-        if (units <= 0 || tile.Body == null)
-        {
-            return false;
-        }
-
-        int newX = horizontal ? units : shortMul;
-        int newY = horizontal ? shortMul : units;
-
-        // New AABB lower bound after carve = old lower + startUnit * unitLength
-        // along the long axis. Body position = newAABBLower + anchorOffset.
-        Vector2 newAabbLower_world = oldAabb.lowerBound;
-        if (horizontal) newAabbLower_world.X += startUnit * unitLength;
-        else            newAabbLower_world.Y += startUnit * unitLength;
-
-        Vector2 newBodyPos_world = newAabbLower_world + anchorOffset_world;
-        Vector2 newBodyPos_box2d = new(
-            Converter.WorldToBox2D(newBodyPos_world.X),
-            Converter.WorldToBox2D(newBodyPos_world.Y));
-
-        try
-        {
-            tile.SetObjectSizeMultiplier(newX, newY);
-            tile.RecreateFixture(newX, newY);
-            tile.Body.SetTransform(newBodyPos_box2d, bodyAngle);
-            tile.Body.SetAwake(true);
-        }
+        // Destroy the original first so the spawned survivor cells don't
+        // overlap its collision body.
+        try { tile.Destroy(); }
         catch
         {
-            return false;
+            try { tile.Remove(); } catch { /* tolerate */ }
         }
+
+        // Spawn 1x1 cells for every surviving long-axis index, on every
+        // short-axis row. shortMul is usually 1 for long-thin tiles but we
+        // handle the general case for symmetry with fragmentation.
+        SpawnLongThinSurvivorCells(
+            world, mapId, horizontal, longMul, shortMul, baseWidth, baseHeight,
+            parentVisual_world, bodyAngle, parentColors,
+            startUnitInclusive: 0, endUnitExclusive: leftUnits);
+
+        SpawnLongThinSurvivorCells(
+            world, mapId, horizontal, longMul, shortMul, baseWidth, baseHeight,
+            parentVisual_world, bodyAngle, parentColors,
+            startUnitInclusive: hitEndUnit, endUnitExclusive: longMul);
+
         return true;
     }
 
     /// <summary>
-    /// Spawns a fresh static tile of the given <paramref name="mapObjectId"/>
-    /// representing a surviving sub-segment of a split long-thin slab. The
-    /// new tile gets the same anchor/orientation as the original so it sits
-    /// exactly where the surviving piece used to be inside the larger slab.
+    /// Spawns 1x1 cells for the surviving long-axis units of a split
+    /// long-thin tile, using the same positioning formula as
+    /// <see cref="TryFragmentIntoCells"/>. Each cell's body sits at the
+    /// rotated local offset from <paramref name="parentBody_world"/> that
+    /// it would occupy as part of the original multi-unit tile.
     /// </summary>
-    private static void SpawnLongThinSegment(
+    private static void SpawnLongThinSurvivorCells(
         GameWorld world,
         string mapObjectId,
         bool horizontal,
-        int startUnit,
-        int units,
+        int longMul,
         int shortMul,
-        AABB oldAabb,
-        Vector2 anchorOffset_world,
-        float unitLength,
-        float bodyAngle)
+        int baseWidth,
+        int baseHeight,
+        Vector2 parentVisual_world,
+        float angle,
+        string[] parentColors,
+        int startUnitInclusive,
+        int endUnitExclusive)
     {
-        if (units <= 0 || string.IsNullOrEmpty(mapObjectId))
+        if (endUnitExclusive <= startUnitInclusive || string.IsNullOrEmpty(mapObjectId))
         {
             return;
         }
 
-        int newX = horizontal ? units : shortMul;
-        int newY = horizontal ? shortMul : units;
+        int xMul = horizontal ? longMul : shortMul;
+        int yMul = horizontal ? shortMul : longMul;
 
-        Vector2 newAabbLower_world = oldAabb.lowerBound;
-        if (horizontal) newAabbLower_world.X += startUnit * unitLength;
-        else            newAabbLower_world.Y += startUnit * unitLength;
+        float cosA = (float)Math.Cos(angle);
+        float sinA = (float)Math.Sin(angle);
 
-        Vector2 newBodyPos_world = newAabbLower_world + anchorOffset_world;
+        int longStartCx = horizontal ? startUnitInclusive : 0;
+        int longEndCx   = horizontal ? endUnitExclusive  : xMul;
+        int longStartCy = horizontal ? 0                 : startUnitInclusive;
+        int longEndCy   = horizontal ? yMul              : endUnitExclusive;
 
-        try
+        for (int cy = longStartCy; cy < longEndCy; cy++)
         {
-            ObjectData child = ObjectData.CreateNew(new ObjectDataStartParams(
-                world.IDCounter.NextID(), 0, 0, mapObjectId, world.GameOwner));
-            if (child == null)
+            for (int cx = longStartCx; cx < longEndCx; cx++)
             {
-                return;
+                float lx = (cx - (xMul - 1) * 0.5f) * baseWidth;
+                float ly = (cy - (yMul - 1) * 0.5f) * baseHeight;
+                float wx = parentVisual_world.X + cosA * lx - sinA * ly;
+                float wy = parentVisual_world.Y + sinA * lx + cosA * ly;
+                Vector2 cellPos = new(wx, wy);
+
+                ObjectData child;
+                try
+                {
+                    child = ObjectData.CreateNew(new ObjectDataStartParams(
+                        world.IDCounter.NextID(), 0, 0, mapObjectId, world.GameOwner));
+                    if (child == null) continue;
+                    child.SetObjectSizeMultiplier(1, 1);
+                }
+                catch { continue; }
+
+                try
+                {
+                    world.CreateTile(new SpawnObjectInformation(child, cellPos, angle));
+                }
+                catch { continue; }
+
+                try { child.CustomIDName = FragmentCustomId; } catch { /* best effort */ }
+                if (parentColors != null)
+                {
+                    try { child.ApplyColors(parentColors, false); } catch { /* best effort */ }
+                }
             }
-            child.SetObjectSizeMultiplier(newX, newY);
-            world.CreateTile(new SpawnObjectInformation(child, newBodyPos_world, bodyAngle));
-        }
-        catch
-        {
-            // Tolerate — losing one of two split halves is better than crashing.
         }
     }
 
@@ -1172,12 +1149,45 @@ internal static class EnvironmentDestructionHandler
     /// missing body, etc.). Distributes debris along the slab's full length
     /// and removes it as a single body. Returns true so chain-collapse can
     /// proceed.
+    /// <para>
+    /// Massive slabs (either dimension over <see cref="MassiveTileSize"/>)
+    /// are shattered into debris and destroyed in place — never launched as
+    /// a single dynamic body. Without this guard a long platform authored
+    /// as a single wide tile (size multiplier 1x1) would slide as one rigid
+    /// piece when blown up, instead of breaking apart.
+    /// </para>
     /// </summary>
     private static bool DestroyLongThinWhole(GameWorld world, ObjectData tile, AABB aabb, Vector2 explosionCenter, float damage, string[] debris)
     {
         Vector2 center = (aabb.lowerBound + aabb.upperBound) * 0.5f;
         float width = aabb.upperBound.X - aabb.lowerBound.X;
         float height = aabb.upperBound.Y - aabb.lowerBound.Y;
+
+        // Massive single-unit slabs: shatter into debris instead of launching
+        // the whole body. TryShatterMassive emits debris and destroys the
+        // tile in place, so the slab visibly breaks apart and the player
+        // doesn't see the whole platform shift sideways.
+        if (width > MassiveTileSize || height > MassiveTileSize)
+        {
+            if (TryShatterMassive(world, tile, explosionCenter, damage, debris))
+            {
+                return true;
+            }
+
+            // Shatter declined (no debris set / AABB unavailable). Destroy in
+            // place anyway — better to disappear than to slide.
+            float fbScatter = MathHelper.Clamp(Math.Max(width, height) * 0.25f, 6f, 16f);
+            try { world.SpawnDebris(tile, center, fbScatter, debris, (short)Math.Min(LongThinDebrisMaxChunks, 8), true); }
+            catch { /* tolerate */ }
+            try { tile.Destroy(); }
+            catch
+            {
+                try { tile.Remove(); } catch { /* tolerate */ }
+            }
+            return true;
+        }
+
+        // Small enough to safely dislodge as one piece (compact tiles).
         float scatter = MathHelper.Clamp(Math.Max(width, height) * 0.25f, 6f, 14f);
         try { world.SpawnDebris(tile, center, scatter, debris, (short)Math.Min(LongThinDebrisMaxChunks, 6), true); }
         catch { /* tolerate */ }
@@ -1367,11 +1377,19 @@ internal static class EnvironmentDestructionHandler
             return false;
         }
 
-        Vector2 parentBodyPos_world;
+        Vector2 parentCentre_world;
         float angle;
         try
         {
-            parentBodyPos_world = Converter.ConvertBox2DToWorld(tile.Body.GetPosition());
+            // Use the world-AABB centre, NOT `tile.Body.GetPosition()`. For
+            // long-thin multi-unit tiles (long floors/ceilings), the body
+            // anchor sits at one end of the slab rather than its centre, and
+            // rotating cell offsets around the body shifts every cell by
+            // half the long-axis extent — visibly "teleporting" the survivor
+            // along the long axis to where the explosion struck. The AABB
+            // centre is unambiguous and correct for all multi-unit tiles
+            // regardless of where SFD anchored the body.
+            parentCentre_world = (tileAabb.lowerBound + tileAabb.upperBound) * 0.5f;
             angle = tile.Body.GetAngle();
         }
         catch { return false; }
@@ -1384,7 +1402,7 @@ internal static class EnvironmentDestructionHandler
         var fragments = new List<ObjectData>(cells);
 
         // Each 1x1 cell's centre, expressed as an offset from the parent
-        // body centre in the tile's LOCAL frame, is
+        // visual centre in the tile's LOCAL frame, is
         //   local = ( (cx - (xMul-1)/2) * baseW,  (cy - (yMul-1)/2) * baseH )
         // Then rotate by the tile's angle to get the world-space offset.
         for (int cy = 0; cy < yMul; cy++)
@@ -1393,8 +1411,8 @@ internal static class EnvironmentDestructionHandler
             {
                 float lx = (cx - (xMul - 1) * 0.5f) * baseWidth;
                 float ly = (cy - (yMul - 1) * 0.5f) * baseHeight;
-                float wx = parentBodyPos_world.X + cosA * lx - sinA * ly;
-                float wy = parentBodyPos_world.Y + sinA * lx + cosA * ly;
+                float wx = parentCentre_world.X + cosA * lx - sinA * ly;
+                float wy = parentCentre_world.Y + sinA * lx + cosA * ly;
                 Vector2 cellPos = new(wx, wy);
 
                 ObjectData child;

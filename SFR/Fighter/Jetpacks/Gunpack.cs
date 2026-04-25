@@ -18,7 +18,7 @@ internal sealed class Gunpack : GenericJetpack
     private float _fireRate;
     private float _projectileTimer;
 
-    internal Gunpack() : base(140, 1.2f)
+    internal Gunpack() : base(140, 5f)
     {
     }
 

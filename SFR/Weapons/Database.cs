@@ -191,7 +191,7 @@ internal static class Database
             { 74, 13 }, // Blade
             { 75, 10 }, // Caber
             { 76, 18 }, // Crowbar
-            { 77, 6 }, // GreatSword
+            { 77, 4 }, // GreatSword
             { 78, 10 }, // Morningstar
             { 79, 8 }, //ParryingDagger
             { 80, 6 }, // Poleaxe
@@ -211,9 +211,9 @@ internal static class Database
             { 94, 8 }, // Barrett
             { 95, 9 }, // Blunderbuss
             { 96, 10 }, // Crossbow
-            { 97, 8 }, // Double barrel
+            // { 97, 8 }, // Double barrel
             { 98, 18 }, // Musket
-            { 99, 7 }, // Quad launcher
+            // { 99, 7 }, // Quad launcher
             { 100, 8 }, // RCM
             { 101, 12 }, // Winchester
             { 102, 6 }, // Minigun
