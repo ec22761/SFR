@@ -16,6 +16,8 @@ internal static class Database
     {
         Array.Resize(ref ProjectileDatabase.projectiles, 118);
 
+        ProjectileDatabase.projectiles[115] = new ProjectileBunkerBuster();
+
         ProjectileDatabase.projectiles[69] = new ProjectileFlintlock();
         ProjectileDatabase.projectiles[70] = new ProjectileNailGun();
         ProjectileDatabase.projectiles[85] = new ProjectileUnkemptHarold();

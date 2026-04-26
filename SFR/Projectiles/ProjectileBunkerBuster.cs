@@ -8,35 +8,39 @@ using Player = SFD.Player;
 
 namespace SFR.Projectiles;
 
-internal sealed class ProjectileCannon : ProjectileBazooka
+/// <summary>
+/// Heavy bomb dropped from the AirStrike plane. Smashes through several layers of
+/// terrain (like the cannonball) before its final big explosion.
+/// </summary>
+internal sealed class ProjectileBunkerBuster : ProjectileBazooka
 {
-    private const float _explosionValue = 55;
-    private const int _maxPenetrations = 5;
+    private const float _penetrationExplosion = 60f;
+    private const float _finalExplosion = 130f;
+    private const int _maxPenetrations = 6;
     private float _effectTimer;
     private int _penetrations;
     private float _gravity;
 
-    internal ProjectileCannon()
+    internal ProjectileBunkerBuster()
     {
-        Visuals = new ProjectileVisuals(Textures.GetTexture("CannonBall00"), Textures.GetTexture("CannonBall00"));
-        Properties = new ProjectileProperties(113, 300f, 0f, 20f, 20f, 0f, 0f, 25f, 0.5f)
+        Visuals = new ProjectileVisuals(Textures.GetTexture("BunkerBuster"), Textures.GetTexture("BunkerBuster"));
+        Properties = new ProjectileProperties(115, 280f, 0f, 25f, 25f, 0f, 0f, 30f, 0.5f)
         {
             DodgeChance = 0f,
             CanBeAbsorbedOrBlocked = false,
-            PowerupTotalBounces = 3,
+            PowerupTotalBounces = 0,
             PowerupBounceRandomAngle = 0f,
             PowerupFireType = ProjectilePowerupFireType.Fireplosion,
-            PowerupFireIgniteValue = 56f
+            PowerupFireIgniteValue = 60f
         };
     }
 
-    private ProjectileCannon(ProjectileProperties projectileProperties, ProjectileVisuals projectileVisuals) : base(projectileProperties, projectileVisuals)
-    {
-    }
+    private ProjectileBunkerBuster(ProjectileProperties projectileProperties, ProjectileVisuals projectileVisuals)
+        : base(projectileProperties, projectileVisuals) { }
 
     public override Projectile Copy()
     {
-        Projectile projectile = new ProjectileCannon(Properties, Visuals);
+        Projectile projectile = new ProjectileBunkerBuster(Properties, Visuals);
         projectile.CopyBaseValuesFrom(this);
         return projectile;
     }
@@ -45,7 +49,7 @@ internal sealed class ProjectileCannon : ProjectileBazooka
     {
         if (player.GameOwner != GameOwnerEnum.Client)
         {
-            _ = GameWorld.TriggerExplosion(Position, _explosionValue, true);
+            _ = GameWorld.TriggerExplosion(Position, _finalExplosion, true);
             HitFlag = true;
             GameWorld.RemovedProjectiles.Add(this);
         }
@@ -53,10 +57,10 @@ internal sealed class ProjectileCannon : ProjectileBazooka
 
     public override void Update(float ms)
     {
-        // Sharper gravity falloff — cannonball arcs down quickly
+        // Strong gravity so the bomb falls almost straight down.
         _gravity += ms;
-        float gravityScale = System.Math.Min(_gravity / 300f, 1f);
-        Velocity -= Vector2.UnitY * ms * 0.8f * gravityScale;
+        float gravityScale = System.Math.Min(_gravity / 250f, 1f);
+        Velocity -= Vector2.UnitY * ms * 1.0f * gravityScale;
 
         if (GameWorld.GameOwner != GameOwnerEnum.Server)
         {
@@ -64,7 +68,7 @@ internal sealed class ProjectileCannon : ProjectileBazooka
             if (_effectTimer < 0)
             {
                 EffectHandler.PlayEffect("TR_S", Position, GameWorld, Direction.X, Direction.Y);
-                _effectTimer = Constants.EFFECT_LEVEL_FULL ? 10f : 20f;
+                _effectTimer = Constants.EFFECT_LEVEL_FULL ? 12f : 24f;
             }
         }
     }
@@ -81,32 +85,31 @@ internal sealed class ProjectileCannon : ProjectileBazooka
 
         if (GameOwner != GameOwnerEnum.Client)
         {
-            // Don't explode when the projectile is being deflected. Triggering
-            // an explosion synchronously inside a deflect callback re-enters
-            // Box2D's projectile-hit iteration via our explosion postfix and
-            // can corrupt the DynamicTree (freezes the game in ComputeHeight
-            // recursion). Helicopter rotor blades are ObjectProjectileDeflectZone.
+            // Don't explode when the projectile is being deflected. The deflect
+            // callback runs inside Box2D's projectile-hit iteration; calling
+            // TriggerExplosion here re-enters our explosion postfix, which can
+            // synchronously CreateTile (RecreateFixture -> DynamicTree.CreateProxy)
+            // while Box2D's tree is mid-update. That corrupts the tree and freezes
+            // the game in DynamicTree.ComputeHeight recursion. Helicopter rotor
+            // blades are ObjectProjectileDeflectZones, which is exactly this case.
             if (e.ReflectionStatus == ProjectileReflectionStatus.WillBeReflected)
             {
                 // Let SFD finish the deflect; no explosion this hit.
             }
             else if (_penetrations < _maxPenetrations)
             {
-                // Explode but keep going — smash through the wall
                 _penetrations++;
-                _ = GameWorld.TriggerExplosion(Position, _explosionValue, true);
+                _ = GameWorld.TriggerExplosion(Position, _penetrationExplosion, true);
                 SoundHandler.PlaySound("DestroyWood", Position, GameWorld);
                 EffectHandler.PlayEffect("EXP", Position, GameWorld);
 
-                // Don't remove the projectile — let it keep flying
                 e.CustomHandled = true;
                 e.ReflectionStatus = ProjectileReflectionStatus.None;
                 HitFlag = false;
             }
             else
             {
-                // Final impact — explode and die
-                _ = GameWorld.TriggerExplosion(Position - Direction * 2, _explosionValue, true);
+                _ = GameWorld.TriggerExplosion(Position - Direction * 2, _finalExplosion, true);
                 HitFlag = true;
             }
         }

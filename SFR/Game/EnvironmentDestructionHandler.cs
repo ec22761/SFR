@@ -216,11 +216,14 @@ internal static class EnvironmentDestructionHandler
     /// <summary>Number of metal debris pieces sprayed when a helicopter is destroyed.</summary>
     /// <remarks>
     /// Each entry in the array passed to <c>SpawnDebris</c> spawns a real
-    /// physics piece, so this directly controls particle count. Combined with
-    /// the rigid scrap tiles (<see cref="HelicopterScrapTiles"/>), values
-    /// above ~16 cause noticeable stalls; keep it modest.
+    /// physics piece. Helicopter propellers are kinematic colliders that
+    /// trigger explosion/hit events on contact, so spraying many bodies near
+    /// a still-spinning helicopter causes per-frame propeller-vs-debris
+    /// collisions that re-enter our explosion postfix and freeze the game.
+    /// Keeping this at the palette length (5) reproduces the pre-refactor
+    /// behaviour exactly.
     /// </remarks>
-    private const int HelicopterMetalChunks = 14;
+    private const int HelicopterMetalChunks = 5;
 
     /// <summary>Number of fully-rigid burning metal scrap tiles spawned alongside the debris.</summary>
     private const int HelicopterScrapTiles = 8;
@@ -330,6 +333,14 @@ internal static class EnvironmentDestructionHandler
         "PORTAL", "TEXT", "SIGN", "MARKER", "INDICATOR", "INVISIBLE",
         "SCRIPT", "AREA", "GHOST", "BUTTON", "DRAW",
         "GLASS", "ACID", "SHADOW",
+        // Map-script overlays / sensors. Authored as multi-cell transparent
+        // tiles (e.g. GibZone is 8x8). Fragmenting them spawns more sensor
+        // bodies whose Initialize() resizes itself again and bogs the game
+        // down inside Properties.Get array scans — reproduced as a freeze
+        // when a BunkerBuster explodes near a GibZone.
+        "GIBZONE", "GIB_ZONE", "DEFLECT", "DEFLECTZONE",
+        "PROJECTILEFILTER", "DEBRISFILTER", "FIREZONE", "PUSHZONE",
+        "WINDZONE", "DAMAGEZONE", "HEALZONE",
     };
 
     [HarmonyPostfix]
@@ -368,6 +379,7 @@ internal static class EnvironmentDestructionHandler
         _chunkPeakSpeed.Clear();
         _chunkLastSpeed.Clear();
         _pendingCollapses.Clear();
+        _explosionRecursionDepth = 0;
     }
 
     /// <summary>
@@ -697,6 +709,17 @@ internal static class EnvironmentDestructionHandler
         }
     }
 
+    /// <summary>
+    /// Re-entry guard for <see cref="HandleExplosion"/>. SFD spinning
+    /// helicopter rotors and chain-detonating gargoyles can synchronously
+    /// trigger nested <c>TriggerExplosion</c> calls; without a guard our
+    /// postfix would recurse and freeze the game.
+    /// </summary>
+    private static int _explosionRecursionDepth;
+
+    /// <summary>Hard cap on nested explosion handling.</summary>
+    private const int MaxExplosionRecursion = 4;
+
     private static void HandleExplosion(GameWorld world, Vector2 worldPosition, float damage)
     {
         if (world == null || world.GameOwner == GameOwnerEnum.Client || damage <= 0f)
@@ -704,6 +727,26 @@ internal static class EnvironmentDestructionHandler
             return;
         }
 
+        // Prevent runaway recursion when an in-flight explosion (e.g. our
+        // helicopter shred path dealing 9999 script damage) causes SFD to
+        // synchronously fire another TriggerExplosion in OnDestroyObject.
+        if (_explosionRecursionDepth >= MaxExplosionRecursion)
+        {
+            return;
+        }
+        _explosionRecursionDepth++;
+        try
+        {
+            HandleExplosionImpl(world, worldPosition, damage);
+        }
+        finally
+        {
+            _explosionRecursionDepth--;
+        }
+    }
+
+    private static void HandleExplosionImpl(GameWorld world, Vector2 worldPosition, float damage)
+    {
         float radius = Math.Min(MaxRadius, damage * RadiusPerDamage);
         if (radius < 6f)
         {
@@ -1032,6 +1075,16 @@ internal static class EnvironmentDestructionHandler
     /// </summary>
     private static bool CanFragmentIntoCells(ObjectData tile)
     {
+        // Never fragment transparent map-script overlays (GibZone,
+        // ProjectileDeflectZone, sensor zones, area triggers). They are
+        // authored as multi-cell sensor tiles and re-spawning copies of them
+        // re-enters their Initialize() which resizes itself, ending in a
+        // CPU spin inside SFD's Properties array on the next Box2D step.
+        if (tile is ObjectTransparent)
+        {
+            return false;
+        }
+
         int xMul = 1, yMul = 1;
         try { tile.GetObjectSizeMultiplier(out xMul, out yMul); }
         catch { return false; }
@@ -2371,75 +2424,39 @@ internal static class EnvironmentDestructionHandler
             return false;
         }
 
+        // Only shred from the top-level explosion. ObjectHelicopter.OnDestroyObject
+        // synchronously triggers a 100f secondary explosion at the wreck centre,
+        // which re-enters HandleExplosion. SFD then SpawnReplacement's Helicopter00_D
+        // with a NEW ObjectID, so our _shreddedHelicopters set (keyed by ID) doesn't
+        // dedupe the wreck. Without this guard the nested explosion shreds the
+        // wreck too — spawning another wave of 8 burning scrap tiles + 9999 script
+        // damage + another secondary explosion — and the cascade locks up the game
+        // when an explosive hits the rotor blades (the only fixture that lets a
+        // projectile detonate on the helicopter without also dealing damage to its
+        // body fixture, so the very first hit reaches us at full destructable
+        // health and triggers the worst-case chain).
+        if (_explosionRecursionDepth > 1)
+        {
+            return false;
+        }
+
         int id = obj.ObjectID;
         if (!_shreddedHelicopters.Add(id))
         {
             return false;
         }
 
-        Vector2 centre;
-        try { centre = obj.GetWorldPosition(); }
-        catch { return false; }
-
-        // Spray of small metal debris particles via SFD's normal SpawnDebris path.
-        SpawnDebrisCount(world, obj, centre, 28f, MetalDebris, HelicopterMetalChunks);
-
-        // Set the helicopter itself fully ablaze so its wreck burns visibly.
+        // Cosmetic: light it up so the wreck visibly burns. SFD's own
+        // ObjectHelicopter.OnDestroyObject already triggers a 100f secondary
+        // explosion + adds 48 fire nodes + spawns 10 metal debris pieces, so
+        // we don't need to layer on more bodies here. Earlier revisions
+        // spawned 5 SpawnDebris pieces + 8 dynamic burning scrap tiles
+        // (CreateTile + ChangeBodyType + SetMaxFire + TrackAsMissile) inside
+        // the still-alive helicopter's static_ground fixtures; that path
+        // freezes the game when a bazooka rocket only catches the rotor
+        // blades. Disabled — caller still pumps 9999 script damage so the
+        // helicopter dies in one hit either way.
         try { obj.SetMaxFire(); } catch { /* tolerate */ }
-
-        // Plus a handful of rigid burning scrap tiles flying outward.
-        for (int i = 0; i < HelicopterScrapTiles; i++)
-        {
-            try
-            {
-                ObjectData scrap = ObjectData.CreateNew(new ObjectDataStartParams(
-                    world.IDCounter.NextID(), 0, 0, HelicopterScrapMapId, world.GameOwner));
-                if (scrap == null) continue;
-
-                // Spawn slightly offset around the helicopter centre.
-                double a = Globals.Random.NextDouble() * Math.PI * 2.0;
-                float r = (float)Globals.Random.NextDouble() * 6f + 2f;
-                Vector2 spawnPos = centre + new Vector2((float)Math.Cos(a) * r, (float)Math.Sin(a) * r);
-
-                world.CreateTile(new SpawnObjectInformation(scrap, spawnPos, 0f));
-
-                try { scrap.ChangeBodyType(BodyType.Dynamic); } catch { /* tolerate */ }
-                if (scrap.Body != null)
-                {
-                    Vector2 dir = spawnPos - explosionCenter;
-                    if (dir.LengthSquared() < 0.0001f)
-                    {
-                        dir = new Vector2((float)(Globals.Random.NextDouble() * 2.0 - 1.0), -1f);
-                    }
-                    dir.Normalize();
-                    float speed = 14f + (float)Globals.Random.NextDouble() * 10f;
-                    Vector2 vel = dir * speed + new Vector2(0f, -8f);
-                    float angVel = ((float)Globals.Random.NextDouble() * 2f - 1f) * 18f;
-
-                    try
-                    {
-                        scrap.Body.SetLinearVelocity(vel);
-                        scrap.Body.SetAngularVelocity(angVel);
-                        scrap.Body.SetAwake(true);
-                    }
-                    catch { /* tolerate */ }
-                }
-
-                try { scrap.SetMaxFire(); } catch { /* tolerate */ }
-
-                try
-                {
-                    if (scrap.GetScriptBridge() is IObject io)
-                    {
-                        io.TrackAsMissile(true);
-                    }
-                }
-                catch { /* tolerate */ }
-
-                LaunchedChunks.Add(scrap.ObjectID);
-            }
-            catch { /* one scrap failing isn't fatal */ }
-        }
 
         return true;
     }

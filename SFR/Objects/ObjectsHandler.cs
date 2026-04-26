@@ -198,6 +198,12 @@ internal static class ObjectsHandler
             case "WPNCALTROPTHROWN":
                 __result = new ObjectCaltropThrown(startParams);
                 return false;
+            case "WPNAIRSTRIKETHROWN":
+                __result = new ObjectAirStrikeThrown(startParams);
+                return false;
+            case "AIRSTRIKEPLANE":
+                __result = new ObjectAirStrikePlane(startParams);
+                return false;
             case "FROGGY00":
                 __result = new ObjectFroggy(startParams);
                 return false;
