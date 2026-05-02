@@ -3309,6 +3309,46 @@ Tile(AirStrikePlane)
 		blockFire = false;
 	}
 }
+Tile(ItemPortableTurret)
+{
+	tileTexture = PortableTurret;
+	pickupType = instant;
+	pickupRange = 10.0;
+	impactEffect = ImpactDefault;
+	impactSound = WeaponBounce;
+	fixture()
+	{
+		mass = 5 kg;
+		collisionPoints = (-4.5, -0.5), (0.5, -0.5), (4.5, 0.5), (0.5, 1.5), (-4.5, 1.5);
+		blockFire = false;
+	}
+}
+Tile(PortableTurretDeployed)
+{
+	tileTexture = PortableTurretBase;
+	life = 80;
+	absorbProjectile = true;
+	projectileHit = true;
+	drawCategory = THRN;
+	mainLayer = 1;
+	editorEnabled = false;
+	punchable = true;
+	kickable = true;
+	type = Dynamic;
+	material = metal;
+	material.blockExplosions = false;
+	gibpressure.total = 250 kg;
+	gibpressure.spike = 1600 kg;
+	impactEffect = ImpactDefault;
+	impactSound = ImpactMetal;
+	fixture()
+	{
+		mass = 50 kg;
+		collisionGroup = debris;
+		collisionPoints = (-6, -6), (6, -6), (6, 6), (-6, 6);
+		blockFire = false;
+	}
+}
 
 // disable editorEnabled again
 defaultTile(default_tile)

@@ -204,6 +204,9 @@ internal static class ObjectsHandler
             case "AIRSTRIKEPLANE":
                 __result = new ObjectAirStrikePlane(startParams);
                 return false;
+            case "PORTABLETURRETDEPLOYED":
+                __result = new ObjectPortableTurret(startParams);
+                return false;
             case "FROGGY00":
                 __result = new ObjectFroggy(startParams);
                 return false;

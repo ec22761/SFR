@@ -207,6 +207,9 @@ internal static class AnimHandler
                 case ShrinkBoost shrinkBoost:
                     shrinkBoost.OnEffectStart(player);
                     break;
+                case PortableTurret portableTurret:
+                    portableTurret.OnEffectStart(player);
+                    break;
             }
         }
 
