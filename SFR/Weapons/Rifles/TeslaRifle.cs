@@ -25,7 +25,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     // --- Gameplay constants ---
     private const float BeamRange = 999f; // effectively unlimited — clamped to screen edge
     private const float BeamDamage = 2.0f;
-    private const float BeamObjectDamage = 9999f; // massive damage — instantly smash through any object
+    private const float BeamObjectDamage = 8f;
     private const float WindUpDuration = 800f; // ms to fully charge
     private const float WindUpDecay = 400f; // ms to lose charge when not firing
     private const float SoundCooldown = 180f;
@@ -48,9 +48,9 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     private const float SmokeEffectInterval = 60f; // ms between smoke effects at hit point
 
     // --- Player impact constants ---
-    private const float BeamPushForceX = 2.0f;   // horizontal shove along beam direction
-    private const float BeamPushForceY = 0.7f;   // small upward lift
-    private const float BeamPushMaxSpeedX = 3.5f; // cap so continuous beam doesn't launch player to escape velocity
+    private const float BeamPushForceX = 0.2f;   // tiny horizontal nudge along beam direction
+    private const float BeamPushForceY = 0.08f;  // tiny upward lift so hits still have feedback
+    private const float BeamPushMaxSpeedX = 1.0f; // cap so continuous beam can't shove players around
 
     // Burn buildup meter: each beam hit on a player increments their buildup;
     // when no longer hit, the buildup decays. Crossing the first threshold
@@ -503,8 +503,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
 
         if (args.Player.GameOwner != GameOwnerEnum.Client)
         {
-            // Server/host: piercing damage raycast — beam smashes through all
-            // solid objects. Uses the same collision filter as the visual beam
+            // Server/host: piercing damage raycast. Uses the same collision filter as the visual beam
             // (no cloud-passable fixtures) so damage and visuals stay in sync at
             // every aim angle.
             Vector2 castOrigin = muzzleWorld;
@@ -586,34 +585,10 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                 // Non-player object hit.
                 if (hitObj is ObjectExplosive or ObjectBarrelExplosive)
                 {
-                    // Detonate explosive barrels / oil canisters / small explosive
-                    // crates. We use both the explicit Exploding property (the same
-                    // path the sledgehammer's heavy attack uses for big barrels) AND
-                    // a massive script-damage hit so smaller explosives that don't
-                    // honor that property still die and trigger their explosion.
                     hitObjectIds ??= new HashSet<int>();
                     if (hitObjectIds.Add(hitObj.ObjectID))
                     {
-                        try
-                        {
-                            ((ObjectDestructible)hitObj).Properties.Get(ObjectPropertyID.BarrelExplosive_Exploding).Value = true;
-                        }
-                        catch
-                        {
-                            // Property may not be present on every explosive variant.
-                        }
-                        if (hitObj is ObjectExplosive explosive)
-                        {
-                            explosive.time = 80f;
-                        }
-                        else if (hitObj is ObjectBarrelExplosive barrel)
-                        {
-                            barrel.time = 80f;
-                        }
-
-                        // Fallback: deal massive damage so any explosive that doesn't
-                        // respond to the property still gets destroyed and triggers
-                        // its on-destroy explosion.
+                        TriggerExplosiveProp(hitObj);
                         hitObj.DealScriptDamage((int)BeamObjectDamage, args.Player.ObjectID);
                     }
 
@@ -629,7 +604,6 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
                     hitObjectIds ??= new HashSet<int>();
                     if (hitObjectIds.Add(hitObj.ObjectID))
                     {
-                        // Obliterate the object instantly.
                         hitObj.DealScriptDamage((int)BeamObjectDamage, args.Player.ObjectID);
 
                         // Play material destruction effects at each smashed object.
@@ -788,7 +762,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
     }
 
     /// <summary>
-    ///     Sweeps along the beam and damages / detonates every destructible
+    ///     Sweeps along the beam and damages/detonates every destructible
     ///     object it meets that the main beam didn't already handle (chain
     ///     links, small explosive barrels, glass, etc.). Does not affect the
     ///     main beam endpoint.
@@ -813,22 +787,7 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
             {
                 if (hitObj is ObjectExplosive or ObjectBarrelExplosive)
                 {
-                    try
-                    {
-                        ((ObjectDestructible)hitObj).Properties.Get(ObjectPropertyID.BarrelExplosive_Exploding).Value = true;
-                    }
-                    catch
-                    {
-                        // Property may not be present on every explosive variant.
-                    }
-                    if (hitObj is ObjectExplosive explosive)
-                    {
-                        explosive.time = 80f;
-                    }
-                    else if (hitObj is ObjectBarrelExplosive barrel)
-                    {
-                        barrel.time = 80f;
-                    }
+                    TriggerExplosiveProp(hitObj);
                 }
 
                 hitObj.DealScriptDamage((int)BeamObjectDamage, owner.ObjectID);
@@ -837,6 +796,27 @@ internal sealed class TeslaRifle : RWeapon, IExtendedWeapon
             float traveled = Vector2.Distance(castOrigin, ray.EndPosition) + 2f;
             castOrigin = ray.EndPosition + dir * 2f;
             remaining -= traveled;
+        }
+    }
+
+    private static void TriggerExplosiveProp(ObjectData explosiveProp)
+    {
+        try
+        {
+            explosiveProp.Properties.Get(ObjectPropertyID.BarrelExplosive_Exploding).Value = true;
+        }
+        catch
+        {
+            // Property may not be present on every explosive variant.
+        }
+
+        if (explosiveProp is ObjectExplosive explosive)
+        {
+            explosive.time = 80f;
+        }
+        else if (explosiveProp is ObjectBarrelExplosive barrel)
+        {
+            barrel.time = 80f;
         }
     }
 
