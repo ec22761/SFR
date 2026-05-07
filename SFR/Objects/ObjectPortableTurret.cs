@@ -31,7 +31,8 @@ internal sealed class ObjectPortableTurret : ObjectData
     private const float BurstShotInterval = 80f;
     private const int BurstRoundCount = 3;
     private const float BurstSpread = 0.08f;
-    private const float ProjectileDamageScale = 1f / 3f;
+    private const float ProjectileDamageScale = 0.2f;
+    private const float ProjectileForceScale = 0.1f;
     private const float MaxHealth = 80f;
     private const float AimLerp = 0.18f;
     private const float MuzzleHeight = 4f;
@@ -299,8 +300,8 @@ internal sealed class ObjectPortableTurret : ObjectData
             properties.ObjectDamage * ProjectileDamageScale,
             properties.CritChance,
             properties.CritDamage * ProjectileDamageScale,
-            properties.PlayerForce,
-            properties.ObjectForce / 0.04f)
+            properties.PlayerForce * ProjectileForceScale,
+            properties.ObjectForce / 0.04f * ProjectileForceScale)
         {
             DodgeChance = properties.DodgeChance,
             CanBeAbsorbedOrBlocked = properties.CanBeAbsorbedOrBlocked,

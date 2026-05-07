@@ -288,6 +288,27 @@ internal static class SyncHandler
                     }
                 }
 
+                if (data.Args.Length > 9 && extendedPlayer.GenericJetpack is not null)
+                {
+                    bool panicFlight = (bool)data.Args[9];
+                    extendedPlayer.GenericJetpack.SetPanicFlightActive(player, panicFlight);
+                }
+
+                if (data.Args.Length > 10)
+                {
+                    bool personaDisguise = (bool)data.Args[10];
+                    if (personaDisguise && data.Args.Length > 11)
+                    {
+                        extendedPlayer.PersonaDisguise = true;
+                        extendedPlayer.PersonaDisguiseTeam = (Team)(int)data.Args[11];
+                    }
+                    else if (!personaDisguise)
+                    {
+                        extendedPlayer.PersonaDisguise = false;
+                        extendedPlayer.PersonaDisguiseTeam = null;
+                    }
+                }
+
                 break;
         }
     }

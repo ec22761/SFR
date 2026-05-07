@@ -19,6 +19,8 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
     internal readonly TimeSequence Time = new();
     internal GenericJetpack GenericJetpack;
     internal JetpackType JetpackType = JetpackType.None;
+    internal Profile PersonaOriginalProfile;
+    internal Team? PersonaDisguiseTeam;
 
     internal ExtendedPlayer(Player player) => Player = player;
 
@@ -50,6 +52,12 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
     {
         get => Time.Spectral > 0f;
         set => Time.Spectral = value ? TimeSequence.SpectralTime : 0f;
+    }
+
+    internal bool PersonaDisguise
+    {
+        get => Time.PersonaDisguise > 0f;
+        set => Time.PersonaDisguise = value ? TimeSequence.PersonaDisguiseTime : 0f;
     }
 
     internal bool ShrinkBoost
@@ -88,7 +96,7 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
 
     internal object[] GetStates()
     {
-        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost, Electrocuted, Poisoned, Spectral, ShrinkBoost];
+        object[] states = [AdrenalineBoost, (int)JetpackType, GenericJetpack?.Fuel?.CurrentValue ?? 0f, LeapBoost, Electrocuted, Poisoned, Spectral, ShrinkBoost, GenericJetpack?.PanicFlightActive ?? false, PersonaDisguise, (int)(PersonaDisguiseTeam ?? Team.Independent)];
         return states;
     }
 
@@ -143,6 +151,36 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         SoundHandler.PlaySound("StrengthBoostStop", Player.Position, Player.GameWorld);
     }
 
+    internal void ApplyPersonaDisguise(Profile profile, Team team)
+    {
+        if (profile is null)
+        {
+            return;
+        }
+
+        PersonaOriginalProfile ??= Player.GetProfile()?.Copy();
+        Player.ApplyProfile(profile.Copy());
+        Player.MetaDataUpdated = true;
+        PersonaDisguiseTeam = team;
+        PersonaDisguise = true;
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+    }
+
+    internal void DisablePersonaDisguise()
+    {
+        PersonaDisguise = false;
+        PersonaDisguiseTeam = null;
+        if (PersonaOriginalProfile is not null)
+        {
+            Player.ApplyProfile(PersonaOriginalProfile.Copy());
+            PersonaOriginalProfile = null;
+            Player.MetaDataUpdated = true;
+        }
+
+        GenericData.SendGenericDataToClients(new GenericData(DataType.ExtraClientStates, [], Player.ObjectID, GetStates()));
+        SoundHandler.PlaySound("StrengthBoostStop", Player.Position, Player.GameWorld);
+    }
+
     internal void ApplyShrinkBoost()
     {
         var mods = Player.GetModifiers();
@@ -186,6 +224,7 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         internal const float PoisonDamagePerTick = 2f;
         internal const float PoisonTickInterval = 500f;
         internal const float SpectralTime = 30000f;
+        internal const float PersonaDisguiseTime = 40000f;
         internal const float ShrinkBoostTime = 20000f;
         internal float AdrenalineBoost;
         internal float LeapBoost;
@@ -193,6 +232,7 @@ internal sealed class ExtendedPlayer : IEquatable<Player>, IEquatable<ExtendedPl
         internal float Poison;
         internal float PoisonTickTimer;
         internal float Spectral;
+        internal float PersonaDisguise;
         internal float ShrinkBoost;
     }
 

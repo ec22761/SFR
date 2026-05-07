@@ -117,6 +117,9 @@ internal static class ExtendedWeapon
         {
             wep.OnHit(hitBy, __instance);
         }
+
+        ExtendedPlayer extendedPlayer = __instance.GetExtension();
+        extendedPlayer.GenericJetpack?.StartPanicFlight(extendedPlayer, hitBy);
     }
 
     [HarmonyPostfix]

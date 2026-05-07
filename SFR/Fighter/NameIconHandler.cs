@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SFD;
+using SFR.Helper;
 using SFR.Weapons.Others;
 
 namespace SFR.Fighter;
@@ -8,6 +9,18 @@ namespace SFR.Fighter;
 internal static class NameIconHandler
 {
     private static Vector2 CalculatePosition(Player player, Vector2 vec, Texture2D icon, float num) => new(vec.X - player.m_nameTextSize.X * 0.25f * num - icon.Width * num - 4f, vec.Y - player.m_nameTextSize.Y * num);
+
+    private static Team GetDisplayTeam(Player player)
+    {
+        ExtendedPlayer extendedPlayer = player.GetExtension();
+        return extendedPlayer.PersonaDisguise && extendedPlayer.PersonaDisguiseTeam.HasValue ? extendedPlayer.PersonaDisguiseTeam.Value : player.m_currentTeam;
+    }
+
+    private static Color GetDisplayNameColor(Player player)
+    {
+        ExtendedPlayer extendedPlayer = player.GetExtension();
+        return extendedPlayer.PersonaDisguise && extendedPlayer.PersonaDisguiseTeam.HasValue ? Constants.COLORS.GetTeamColor(extendedPlayer.PersonaDisguiseTeam.Value) : player.GetTeamTextColor();
+    }
 
     private static void DrawDeveloperIcon(Player player, Vector2 vec, float num)
     {
@@ -30,7 +43,7 @@ internal static class NameIconHandler
 
     private static void DrawMemberIcon(Player player, Vector2 vec, float num)
     {
-        Texture2D icon = Constants.GetTeamIcon(player.m_currentTeam);
+        Texture2D icon = Constants.GetTeamIcon(GetDisplayTeam(player));
 
         player.m_spriteBatch.Draw(
             icon,
@@ -57,7 +70,7 @@ internal static class NameIconHandler
             player.m_spriteBatch,
             Constants.Font1Outline,
             displayName, new Vector2(vec.X, vec.Y - 0.75f * player.m_nameTextSize.Y * num),
-            player.GetTeamTextColor(),
+            GetDisplayNameColor(player),
             0f,
             player.m_nameTextSize * 0.5f,
             num * 0.5f,
@@ -79,6 +92,12 @@ internal static class NameIconHandler
         }
 
         DrawName(player, vec, num);
+
+        if (player.GetExtension().PersonaDisguise)
+        {
+            DrawMemberIcon(player, vec, num);
+            return;
+        }
 
         if (!player.IsBot)
         {

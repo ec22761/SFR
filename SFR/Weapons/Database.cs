@@ -25,7 +25,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[123];
+        WeaponDatabase.m_weapons = new WeaponItem[124];
 
         Weapons ??=
         [
@@ -95,7 +95,8 @@ internal static class Database
             new WeaponItem(WeaponItemType.Powerup, new ShrinkBoost()), // 119
             new WeaponItem(WeaponItemType.Thrown, new AirStrike()), // 120
             new WeaponItem(WeaponItemType.Thrown, new AirStrikeDetonator()), // 121
-            new WeaponItem(WeaponItemType.Powerup, new PortableTurret()) // 122
+            new WeaponItem(WeaponItemType.Powerup, new PortableTurret()), // 122
+            new WeaponItem(WeaponItemType.Powerup, new PersonaAnalyser()) // 123
         ];
 
         foreach (WeaponItem weapon in Weapons)
@@ -117,7 +118,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponItem.ID), nameof(WeaponItem.ID.DefaultWeaponSpawnChance))]
     private static bool SpawnChance(ref Dictionary<int, int> __result)
     {
-        WeaponItem.ID.m_wpns ??= new Dictionary<int, int>
+        WeaponItem.ID.m_wpns = new Dictionary<int, int>
         {
             { 1, 12 }, // Handgun
             { 2, 14 }, // Shotgun
@@ -240,6 +241,7 @@ internal static class Database
             { 120, 8 }, // Air Strike
             // 121, Air Strike Detonator (granted only by Air Strike throw)
             { 122, 7 }, // Portable Turret
+            { 123, 10 }, // Persona Analyser
         };
 
         __result = WeaponItem.ID.m_wpns;
@@ -368,6 +370,7 @@ internal static class Database
         ShrinkBoost,
         AirStrike,
         AirStrikeDetonator,
-        PortableTurret
+        PortableTurret,
+        PersonaAnalyser
     }
 }

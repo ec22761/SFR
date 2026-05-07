@@ -510,6 +510,15 @@ internal static class PlayerHandler
             }
         }
 
+        if (extendedPlayer.PersonaDisguise)
+        {
+            extendedPlayer.Time.PersonaDisguise -= ms;
+            if (!extendedPlayer.PersonaDisguise || player.IsDead)
+            {
+                extendedPlayer.DisablePersonaDisguise();
+            }
+        }
+
         if (extendedPlayer.ShrinkBoost)
         {
             extendedPlayer.Time.ShrinkBoost -= ms;
