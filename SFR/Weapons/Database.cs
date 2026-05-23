@@ -232,9 +232,9 @@ internal static class Database
             { 111, 10 }, // Show Stopper
             { 112, 8 }, // Mimic Mine
             { 113, 1 }, // Hand Cannon
-            { 114, 8 }, // Tesla Rifle
+            // { 114, 8 }, // Tesla Rifle
             { 115, 10 }, // Spectrum Analyzer
-            { 116, 4 }, // Junk Cannon
+            // { 116, 4 }, // Junk Cannon
             { 117, 15 }, // Caltrops
             { 118, 10 }, // Defibrillator
             { 119, 10 }, // Shrink Boost
