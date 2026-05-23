@@ -1,8 +1,10 @@
 ﻿using System;
+using Box2D.XNA;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using SFD;
 using SFD.Sounds;
+using SFR.Helper;
 using SFR.Misc;
 using SFR.Sync.Generic;
 
@@ -16,13 +18,27 @@ internal abstract class GenericJetpack(float fuel = 100f, float maxSpeed = 7f)
 {
     protected const float FlyThreshold = 250f;
     private const float PanicDirectionDuration = 3000f;
-    private const float PanicSpinSpeed = 0.0095f;
+    private const float PanicTurnSpeed = 0.0095f;
     private const float PanicVelocityBlend = 0.2f;
     private const float PanicFuelBurnPerMs = 0.03f;
     private const float PanicLaunchSpeed = 13f;
     private const float PanicCruiseSpeedBonus = 8f;
     private const float PanicMinCruiseSpeed = 8f;
     private const float PanicMaxCruiseSpeed = 12f;
+    private const float PanicWaveMinAmplitude = 0.2f;
+    private const float PanicWaveMaxAmplitude = 0.65f;
+    private const float PanicWaveMinFrequency = 0.0035f;
+    private const float PanicWaveMaxFrequency = 0.0075f;
+    private const float PanicWaveMinSecondaryScale = 0.15f;
+    private const float PanicWaveMaxSecondaryScale = 0.35f;
+    private const float PanicCrashArmTime = 2000f;
+    private const float PanicCrashSpeed = 10.5f;
+    private const float PanicCrashDistanceFactor = 0.75f;
+    private const float PanicCrashMinDistance = 5f;
+    private const float PanicCrashMaxDistance = 12f;
+    private const float PanicCrashTunnelingDistance = 0f;
+    private const float PanicCrashExplosionDamage = 120f;
+    private const float PanicCrashSelfDamage = 150f;
     private static readonly Vector2[] PanicDirections =
     [
         new(0.95f, 0.35f),
@@ -48,11 +64,19 @@ internal abstract class GenericJetpack(float fuel = 100f, float maxSpeed = 7f)
     protected float SoundTimer;
 
     private bool _panicFlight;
+    private Vector2 _panicBaseDirection = new(0f, 1f);
     private Vector2 _panicDirection = new(0f, 1f);
     private float _panicDirectionTimer;
     private int _panicDirectionIndex = -1;
-    private float _panicSpin;
-    private int _panicSpinDirection = 1;
+    private float _panicRotation;
+    private int _panicRotationDirection = 1;
+    private float _panicWaveAmplitude = PanicWaveMinAmplitude;
+    private float _panicWaveFrequency = PanicWaveMinFrequency;
+    private float _panicWavePhase;
+    private float _panicWaveSecondaryPhase;
+    private float _panicWaveSecondaryScale = PanicWaveMinSecondaryScale;
+    private float _panicFlightTimer;
+    private bool _panicCrashTriggered;
 
     protected internal JetpackState State;
     internal bool PanicFlightActive => _panicFlight;
@@ -153,23 +177,30 @@ internal abstract class GenericJetpack(float fuel = 100f, float maxSpeed = 7f)
 
     internal void StartPanicFlight(ExtendedPlayer extendedPlayer, Player hitBy)
     {
+        StartPanicFlight(extendedPlayer, hitBy?.LastDirectionX ?? extendedPlayer.Player.LastDirectionX);
+    }
+
+    internal void StartPanicFlight(ExtendedPlayer extendedPlayer, int launchDirection)
+    {
         Player player = extendedPlayer.Player;
         if (Fuel.CurrentValue <= 0f || (!_panicFlight && State != JetpackState.Flying) || player.IsRemoved || player.IsDead)
         {
             return;
         }
 
-        int launchDirection = hitBy == null ? player.LastDirectionX : hitBy.LastDirectionX;
         if (launchDirection == 0)
         {
             launchDirection = 1;
         }
 
         _panicFlight = true;
-        _panicSpin = player.Rotation;
-        _panicSpinDirection = launchDirection > 0 ? 1 : -1;
+        _panicFlightTimer = 0f;
+        _panicRotation = player.Rotation;
+        _panicRotationDirection = launchDirection > 0 ? 1 : -1;
+        _panicCrashTriggered = false;
         PickPanicDirection(launchDirection);
         ApplyPanicVelocity(player, PanicLaunchSpeed);
+        UpdatePanicRotation(player, _panicDirection, 0f, true);
         State = JetpackState.Flying;
         Shake = true;
 
@@ -193,9 +224,12 @@ internal abstract class GenericJetpack(float fuel = 100f, float maxSpeed = 7f)
         }
 
         _panicFlight = true;
-        _panicSpin = player.Rotation;
-        _panicSpinDirection = player.LastDirectionX >= 0 ? 1 : -1;
+        _panicFlightTimer = 0f;
+        _panicRotation = player.Rotation;
+        _panicRotationDirection = player.LastDirectionX >= 0 ? 1 : -1;
+        _panicCrashTriggered = false;
         PickPanicDirection();
+        UpdatePanicRotation(player, _panicDirection, 0f, true);
         State = JetpackState.Flying;
         Shake = true;
     }
@@ -216,9 +250,11 @@ internal abstract class GenericJetpack(float fuel = 100f, float maxSpeed = 7f)
         {
             PickPanicDirection();
         }
+        UpdatePanicWaveDirection(ms, player.SlowmotionFactor);
 
         State = JetpackState.Flying;
         AirTime = Math.Max(AirTime, FlyThreshold + 1f);
+        _panicFlightTimer += ms;
 
         float speed = MathHelper.Clamp(MaxSpeed * 1.4f + PanicCruiseSpeedBonus, PanicMinCruiseSpeed, PanicMaxCruiseSpeed);
         Vector2 targetVelocity = _panicDirection * speed * player.SlowmotionFactor;
@@ -231,10 +267,12 @@ internal abstract class GenericJetpack(float fuel = 100f, float maxSpeed = 7f)
         player.ForceServerPositionState();
         player.ImportantUpdate = true;
 
-        _panicSpin += PanicSpinSpeed * ms * _panicSpinDirection * player.SlowmotionFactor;
-        player.Rotation = _panicSpin;
-        player.LastFallingRotation = _panicSpin;
-        player.RotationDirection = _panicSpinDirection;
+        UpdatePanicRotation(player, velocity.LengthSquared() > 0.01f ? velocity : _panicDirection, ms, false);
+
+        if (TryExplodeOnPanicCrash(extendedPlayer, velocity))
+        {
+            return;
+        }
 
         if (!player.InfiniteAmmo && player.GameOwner != GameOwnerEnum.Client)
         {
@@ -281,19 +319,138 @@ internal abstract class GenericJetpack(float fuel = 100f, float maxSpeed = 7f)
         }
 
         _panicDirectionIndex = nextIndex;
-        _panicDirection = PanicDirections[nextIndex];
-        if (forcedHorizontalDirection != 0 && Math.Abs(_panicDirection.X) > 0.05f)
+        _panicBaseDirection = PanicDirections[nextIndex];
+        if (forcedHorizontalDirection != 0 && Math.Abs(_panicBaseDirection.X) > 0.05f)
         {
-            _panicDirection.X = Math.Abs(_panicDirection.X) * (forcedHorizontalDirection > 0 ? 1f : -1f);
+            _panicBaseDirection.X = Math.Abs(_panicBaseDirection.X) * (forcedHorizontalDirection > 0 ? 1f : -1f);
         }
 
-        if (_panicDirection == Vector2.Zero)
+        if (_panicBaseDirection == Vector2.Zero)
         {
-            _panicDirection = new Vector2(0f, 1f);
+            _panicBaseDirection = new Vector2(0f, 1f);
+        }
+
+        _panicBaseDirection.Normalize();
+        RandomizePanicWave();
+        UpdatePanicWaveDirection(0f, 1f);
+        _panicDirectionTimer = PanicDirectionDuration;
+    }
+
+    private void RandomizePanicWave()
+    {
+        _panicWaveAmplitude = Globals.Random.NextFloat(PanicWaveMinAmplitude, PanicWaveMaxAmplitude);
+        _panicWaveFrequency = Globals.Random.NextFloat(PanicWaveMinFrequency, PanicWaveMaxFrequency);
+        _panicWavePhase = Globals.Random.NextFloat(0f, MathHelper.TwoPi);
+        _panicWaveSecondaryPhase = Globals.Random.NextFloat(0f, MathHelper.TwoPi);
+        _panicWaveSecondaryScale = Globals.Random.NextFloat(PanicWaveMinSecondaryScale, PanicWaveMaxSecondaryScale);
+    }
+
+    private void UpdatePanicWaveDirection(float ms, float slowmotionFactor)
+    {
+        _panicWavePhase += ms * _panicWaveFrequency * slowmotionFactor;
+        Vector2 sideDirection = new(-_panicBaseDirection.Y, _panicBaseDirection.X);
+        float wave = (float)Math.Sin(_panicWavePhase) * _panicWaveAmplitude;
+        wave += (float)Math.Sin(_panicWaveSecondaryPhase + _panicWavePhase * 0.47f) * _panicWaveAmplitude * _panicWaveSecondaryScale;
+
+        _panicDirection = _panicBaseDirection + sideDirection * wave;
+        if (_panicDirection.LengthSquared() <= 0.0001f)
+        {
+            _panicDirection = _panicBaseDirection;
         }
 
         _panicDirection.Normalize();
-        _panicDirectionTimer = PanicDirectionDuration;
+    }
+
+    private void UpdatePanicRotation(Player player, Vector2 direction, float ms, bool snap)
+    {
+        if (direction.LengthSquared() <= 0.0001f)
+        {
+            return;
+        }
+
+        direction.Normalize();
+        float targetRotation = direction.GetRotatedAngle();
+        float rotationDelta = MathHelper.WrapAngle(targetRotation - _panicRotation);
+        if (snap || Math.Abs(rotationDelta) <= 0.001f)
+        {
+            _panicRotation = targetRotation;
+        }
+        else
+        {
+            float rotationStep = PanicTurnSpeed * ms * player.SlowmotionFactor;
+            if (Math.Abs(rotationDelta) <= rotationStep)
+            {
+                _panicRotation = targetRotation;
+            }
+            else
+            {
+                _panicRotationDirection = rotationDelta > 0f ? 1 : -1;
+                _panicRotation += rotationStep * _panicRotationDirection;
+            }
+        }
+
+        if (Math.Abs(rotationDelta) > 0.001f)
+        {
+            _panicRotationDirection = rotationDelta > 0f ? 1 : -1;
+        }
+
+        player.Rotation = _panicRotation;
+        player.LastFallingRotation = _panicRotation;
+        player.RotationDirection = _panicRotationDirection;
+    }
+
+    private bool TryExplodeOnPanicCrash(ExtendedPlayer extendedPlayer, Vector2 velocity)
+    {
+        Player player = extendedPlayer.Player;
+        if (_panicCrashTriggered || _panicFlightTimer < PanicCrashArmTime || player.GameOwner == GameOwnerEnum.Client || player.GameWorld == null)
+        {
+            return false;
+        }
+
+        float speed = velocity.Length();
+        if (speed < PanicCrashSpeed)
+        {
+            return false;
+        }
+
+        Vector2 crashDirection = velocity;
+        if (crashDirection.LengthSquared() <= 0.0001f)
+        {
+            return false;
+        }
+
+        crashDirection.Normalize();
+        float crashScanDistance = MathHelper.Clamp(speed * PanicCrashDistanceFactor, PanicCrashMinDistance, PanicCrashMaxDistance);
+        GameWorld.RayCastResult hit = player.GameWorld.RayCast(player.Position, crashDirection, PanicCrashTunnelingDistance, crashScanDistance, IsPanicCrashFixture, _ => false);
+        if (hit.EndFixture == null)
+        {
+            return false;
+        }
+
+        _panicCrashTriggered = true;
+        _panicFlight = false;
+        Shake = false;
+        State = JetpackState.Falling;
+
+        _ = player.GameWorld.TriggerExplosion(hit.EndPosition, PanicCrashExplosionDamage, true);
+        if (!player.IsRemoved && !player.IsDead)
+        {
+            player.TakeMiscDamage(PanicCrashSelfDamage, sourceID: player.ObjectID);
+        }
+
+        Discard(extendedPlayer);
+        return true;
+    }
+
+    private static bool IsPanicCrashFixture(Fixture fixture)
+    {
+        if (fixture == null || fixture.IsCloud() || fixture.GetBody().GetType() != BodyType.Static)
+        {
+            return false;
+        }
+
+        ObjectData objectData = ObjectData.Read(fixture);
+        return objectData is { IsPlayer: false };
     }
 
     private void ApplyPanicVelocity(Player player, float speed)
@@ -318,6 +475,8 @@ internal abstract class GenericJetpack(float fuel = 100f, float maxSpeed = 7f)
     protected internal virtual void Discard(ExtendedPlayer extendedPlayer)
     {
         _panicFlight = false;
+        _panicFlightTimer = 0f;
+        _panicCrashTriggered = false;
         extendedPlayer.JetpackType = JetpackType.None;
         extendedPlayer.GenericJetpack = null;
         if (extendedPlayer.Player.GameOwner == GameOwnerEnum.Server)
