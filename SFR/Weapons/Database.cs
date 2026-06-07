@@ -25,7 +25,7 @@ internal static class Database
     [HarmonyPatch(typeof(WeaponDatabase), nameof(WeaponDatabase.Load))]
     private static void LoadWeapons()
     {
-        WeaponDatabase.m_weapons = new WeaponItem[124];
+        WeaponDatabase.m_weapons = new WeaponItem[125];
 
         Weapons ??=
         [
@@ -88,6 +88,7 @@ internal static class Database
             new WeaponItem(WeaponItemType.InstantPickup, new Jetpack()), // 104
             new WeaponItem(WeaponItemType.InstantPickup, new JetpackEditor()), // 105
             new WeaponItem(WeaponItemType.InstantPickup, new Gunpack()), // 106
+            new WeaponItem(WeaponItemType.InstantPickup, new LeapPack()), // 124
 
             // Consumable
             new WeaponItem(WeaponItemType.Powerup, new SpectrumAnalyzer()), // 115
@@ -225,6 +226,7 @@ internal static class Database
             // { 104, 14 }, // Jetpack
             {105, 14 }, // Jetpack editor
             { 106, 10 }, // Gunpack
+            { 124, 12 }, // Leap Pack
             { 107, 10 }, // AK47
             // { 108, 8 }, // Scythe
             { 109, 10 }, // Anaconda
@@ -371,6 +373,7 @@ internal static class Database
         AirStrike,
         AirStrikeDetonator,
         PortableTurret,
-        PersonaAnalyser
+        PersonaAnalyser,
+        LeapPack
     }
 }

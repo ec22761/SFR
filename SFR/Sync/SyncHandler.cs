@@ -213,6 +213,7 @@ internal static class SyncHandler
                         JetpackType.Jetpack => new Jetpack(),
                         JetpackType.JetpackEditor => new JetpackEditor(),
                         JetpackType.Gunpack => new Gunpack(),
+                        JetpackType.LeapPack => new LeapPack(),
                         _ => extendedPlayer.GenericJetpack
                     };
                 }
