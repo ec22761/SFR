@@ -222,7 +222,7 @@ internal static class Database
             { 100, 8 }, // RCM
             { 101, 12 }, // Winchester
             { 102, 6 }, // Minigun
-            { 103, 12 }, // Adrenaline boost
+            // { 103, 12 }, // Adrenaline boost
             // { 104, 14 }, // Jetpack
             {105, 14 }, // Jetpack editor
             { 106, 10 }, // Gunpack

@@ -53,11 +53,16 @@ internal sealed class LeapPack : GenericJetpack
             }
         }
 
-        if (jumpPressed && !_jumpWasPressed && _cooldown <= 0f && CanLeap(player))
+        bool freshJump = jumpPressed && !_jumpWasPressed && _cooldown <= 0f;
+        if (freshJump && player.Diving && CanCancelDive(player))
         {
             PerformLeap(extendedPlayer);
         }
-        else if (!player.InAir && _leapActiveTimer <= 0f)
+        else if (freshJump && CanLeap(player))
+        {
+            PerformLeap(extendedPlayer);
+        }
+        else if (!player.InAir && !player.LedgeGrabbing && _leapActiveTimer <= 0f)
         {
             State = JetpackState.Idling;
         }
@@ -75,12 +80,22 @@ internal sealed class LeapPack : GenericJetpack
     private bool CanLeap(Player player)
     {
         return Fuel.CurrentValue > 0f
-            && player.InAir
-            && _wasInAir
+            && (player.InAir || player.LedgeGrabbing)
+            && (_wasInAir || player.LedgeGrabbing)
             && player.WorldBody != null
             && !player.IsRemoved
             && !player.IsDead
-            && !(player.Diving || player.LedgeGrabbing || player.Climbing || player.Crouching || player.Staggering || player.LayingOnGround || player.IsCaughtByPlayer || player.IsGrabbedByPlayer || player.Rolling);
+            && !(player.Diving || player.Climbing || player.Crouching || player.Staggering || player.LayingOnGround || player.IsCaughtByPlayer || player.IsGrabbedByPlayer || player.Rolling);
+    }
+
+    private bool CanCancelDive(Player player)
+    {
+        return Fuel.CurrentValue > 0f
+            && player.WorldBody != null
+            && !player.IsRemoved
+            && !player.IsDead
+            && !player.IsCaughtByPlayer
+            && !player.IsGrabbedByPlayer;
     }
 
     private void PerformLeap(ExtendedPlayer extendedPlayer)
@@ -98,6 +113,11 @@ internal sealed class LeapPack : GenericJetpack
         player.AirControlBaseVelocity = velocity;
         player.ForceServerPositionState();
         player.ImportantUpdate = true;
+
+        if (!player.Diving)
+        {
+            player.Diving = true;
+        }
 
         State = JetpackState.Flying;
         AirTime = FlyThreshold + 1f;
